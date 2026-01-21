@@ -28,7 +28,7 @@ CREATE TABLE Brand (
     Brand_ID INT IDENTITY PRIMARY KEY,
     Brand_Name NVARCHAR(100) NOT NULL,
     Description NVARCHAR(255),
-    Logo_URL NVARCHAR(500),
+    Logo_URL VARCHAR(MAX),
     Status BIT NOT NULL
 );
 
@@ -73,7 +73,7 @@ CREATE TABLE Product (
 CREATE TABLE Product_Image (
     Image_ID INT IDENTITY PRIMARY KEY,
     Product_ID INT NOT NULL,
-    Image_URL NVARCHAR(500) NOT NULL,
+    Image_URL VARCHAR(MAX) NOT NULL,
     CONSTRAINT FK_ProductImage_Product FOREIGN KEY (Product_ID)
         REFERENCES Product(Product_ID)
 );
