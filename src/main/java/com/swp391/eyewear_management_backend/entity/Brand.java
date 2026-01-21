@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 @Entity
 @Table(name = "Brand")
 @Data
@@ -26,6 +28,12 @@ public class Brand {
 
     @Column(name = "Status", nullable = false)
     private Boolean status;
+
+    @OneToMany(mappedBy = "brand", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    private List<BrandSupplier> brandSuppliers;
+
+    @OneToMany(mappedBy = "brand", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    private List<Product> products;
 
     public Brand(String brandName, String description, String logoUrl, Boolean status) {
         this.brandName = brandName;

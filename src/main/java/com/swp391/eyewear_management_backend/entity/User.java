@@ -5,6 +5,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
+import java.util.List;
 
 @Entity
 @Table(name = "User")
@@ -49,6 +50,24 @@ public class User {
 
     @Column(name = "ID_Number", unique = true, columnDefinition = "VARCHAR(20)")
     private String idNumber;
+
+    @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)
+    private List<Order> orders;
+
+    @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)
+    private List<Inventory> inventories;
+
+    @OneToMany(mappedBy = "changedBy", fetch = FetchType.LAZY)
+    private List<OrderProcessing> orderProcessings;
+
+    @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)
+    private List<ReturnExchange> returnExchanges;
+
+    @OneToMany(mappedBy = "approvedBy", fetch = FetchType.LAZY)
+    private List<ReturnExchange> approvedReturnExchanges;
+
+    @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)
+    private List<PrescriptionOrder> prescriptionOrders;
 
     public User(String username, String password, String email, String phone, Role role, Boolean status, String name, String address, LocalDate dateOfBirth, String idNumber) {
         this.username = username;
