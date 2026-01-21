@@ -1,4 +1,65 @@
 package com.swp391.eyewear_management_backend.entity;
 
+import jakarta.persistence.*;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.time.LocalDate;
+
+@Entity
+@Table(name = "User")
+@Data
+@NoArgsConstructor
 public class User {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "User_ID")
+    private Integer userID;
+
+    @Column(name = "Username", unique = true, nullable = false, columnDefinition = "NVARCHAR(50)")
+    private String username;
+
+    @Column(name = "Password", nullable = false, columnDefinition = "NVARCHAR(100)")
+    private String password;
+
+    @Column(name = "Email", unique = true, nullable = false, columnDefinition = "NVARCHAR(100)")
+    private String email;
+
+    @Column(name = "Phone", nullable = false, columnDefinition = "VARCHAR(15)")
+    private String phone;
+
+    @ManyToOne(fetch = FetchType.LAZY, cascade = {
+            CascadeType.PERSIST, CascadeType.MERGE, CascadeType.DETACH, CascadeType.REFRESH
+    })
+    @JoinColumn(name = "Role_ID", nullable = false)
+    private Role role;
+
+    @Column(name = "Status", nullable = false)
+    private Boolean status;
+
+    @Column(name = "Name", nullable = false, columnDefinition = "NVARCHAR(100)")
+    private String name;
+
+    @Column(name = "Address", nullable = false, columnDefinition = "NVARCHAR(255)")
+    private String address;
+
+    @Column(name = "Date_of_Birth")
+    private LocalDate dateOfBirth;
+
+    @Column(name = "ID_Number", unique = true, columnDefinition = "VARCHAR(20)")
+    private String idNumber;
+
+    public User(String username, String password, String email, String phone, Role role, Boolean status, String name, String address, LocalDate dateOfBirth, String idNumber) {
+        this.username = username;
+        this.password = password;
+        this.email = email;
+        this.phone = phone;
+        this.role = role;
+        this.status = status;
+        this.name = name;
+        this.address = address;
+        this.dateOfBirth = dateOfBirth;
+        this.idNumber = idNumber;
+    }
 }
