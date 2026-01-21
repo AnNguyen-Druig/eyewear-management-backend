@@ -21,7 +21,7 @@ public class Brand {
     @Column(name = "Description", columnDefinition = "NVARCHAR(255)")
     private String description;
 
-    @Column(name = "Logo_URL", columnDefinition = "NVARCHAR(500)")
+    @Column(name = "Logo_URL", columnDefinition = "VARCHAR(MAX)")
     private String logoUrl;
 
     @Column(name = "Status", nullable = false)
