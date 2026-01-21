@@ -20,9 +20,7 @@ public class Role {
     @Column(name = "Type_Name", nullable = false, columnDefinition = "NVARCHAR(50)")
     private String typeName;
 
-    @OneToMany(mappedBy = "role", fetch = FetchType.LAZY, cascade = {
-            CascadeType.PERSIST, CascadeType.MERGE, CascadeType.REFRESH, CascadeType.DETACH
-    })
+    @OneToMany(mappedBy = "role", fetch = FetchType.LAZY, cascade = {CascadeType.ALL})
     private List<User> users;
 
     public Role(String typeName) {
