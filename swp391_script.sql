@@ -11,14 +11,14 @@ CREATE TABLE [User] (
     User_ID INT IDENTITY PRIMARY KEY,
     Username NVARCHAR(50) UNIQUE NOT NULL,
     Password NVARCHAR(100) NOT NULL,
-    Email VARCHAR(100) UNIQUE NOT NULL,
+    Email NVARCHAR(100) UNIQUE NOT NULL,
     Phone VARCHAR(15) NOT NULL,
     Role_ID INT NOT NULL,
     Status BIT NOT NULL,
     Name NVARCHAR(100) NOT NULL,
     Address NVARCHAR(255) NOT NULL,
     Date_of_Birth DATE,
-    ID_Number NVARCHAR(20) UNIQUE,
+    ID_Number VARCHAR(20) UNIQUE,
     CONSTRAINT FK_User_Role FOREIGN KEY (Role_ID)
         REFERENCES Role(Role_ID),
 	CONSTRAINT CK_User_Status CHECK (Status IN (0,1))
@@ -366,3 +366,70 @@ CREATE TABLE Prescription_Order_Detail (
     CONSTRAINT FK_PrescriptionDetail_Lens FOREIGN KEY (Lens_ID)
         REFERENCES Lens(Lens_ID)
 );
+
+INSERT INTO [User]
+(Username, Password, Email, Phone, Role_ID, Status, Name, Address, Date_of_Birth, ID_Number)
+VALUES
+    (N'customer01', N'123456', 'customer01@gmail.com','0901112222', 1, 1, N'Nguyễn Văn A', N'Quận 1, TP.HCM', '1998-05-10', '0123456789'),
+    (N'annguyen', N'annguyen123', 'annguyen@gmail.com','0123456789', 2, 1, N'Ân Nguyễn', N'Landmark 81, Quận 1, TP.HCM', '1990-02-15', '012345678901'),
+    (N'huyvu', N'huyvu123', 'huyvu@gmail.com', '0123456788', 2, 1, N'Huy Vũ', N'Landmark 82, Quận 1, TP.HCM', '1980-02-15', '012345678902'),
+    (N'quangnhat', N'quangnnhat123', 'quangnhat@gmail.com','0123456787', 5, 1, N'Quang Trịnh',   N'Phú Mỹ Hưng, Quận 7, TP.HCM', '2005-08-20', '012345678903'),
+    (N'phatvo', N'phatvo123', 'phatvo@gmail.com','0123456786', 3, 1, N'Phát Võ',   N'Thảo Điền, Quận 9, TP.HCM', '2004-08-20', '012345678904'),
+    (N'kienpham', N'kienpham123', 'kienpham@gmail.com','0123456785', 4, 1, N'Kiên Phạm', N'Thảo Điền, Quận 9, TP.HCM', '2003-08-20', '012345678905');
+
+INSERT INTO Brand (Brand_Name, Description, Logo_URL, Status) VALUES
+                                                                  (N'Ray-Ban', N'Thương hiệu kính nổi tiếng của Mỹ', NULL, 1),
+                                                                  (N'Oakley', N'Kính thể thao cao cấp', NULL, 1),
+                                                                  (N'Gucci', N'Thương hiệu thời trang xa xỉ', NULL, 1),
+                                                                  (N'Prada', N'Thương hiệu thời trang cao cấp', NULL, 1),
+                                                                  (N'Gentle Monster', N'Thương hiệu kính Hàn Quốc', NULL, 1),
+                                                                  (N'Essilor', N'Hãng tròng kính Pháp', NULL, 1),
+                                                                  (N'HOYA', N'Hãng tròng kính Nhật Bản', NULL, 1),
+                                                                  (N'Acuvue', N'Thương hiệu kính áp tròng', NULL, 1);
+
+INSERT INTO Product_Type (Type_Name, Description)
+VALUES
+    (N'Gọng Kính', N'Gọng kính'),
+    (N'Tròng Kính', N'Tròng kính'),
+    (N'Kính Áp Tròng', N'Kính áp tròng');
+
+INSERT INTO Product (Product_Name, SKU, Product_Type_ID, Brand_ID, Price, Cost_Price, Allow_Preorder, Description) VALUES
+-- Frames (Gọng kính)
+(N'Ray-Ban Aviator Classic RB3025', N'RB-AVI-3025', 1, 1, 4500000, 3200000, 0, N'Gọng kính phi công cổ điển, chất liệu kim loại cao cấp'),
+(N'Ray-Ban Wayfarer RB2140', N'RB-WAY-2140', 1, 1, 4200000, 3000000, 0, N'Gọng kính phong cách retro'),
+(N'Oakley Flak 2.0 XL', N'OAK-FLK-20XL', 1, 2, 5800000, 4100000, 1, N'Gọng kính thể thao chuyên nghiệp, siêu nhẹ'),
+(N'Gucci GG0061O', N'GUC-GG0061O', 1, 3, 12000000, 8500000, 1, N'Gọng kính sang trọng với logo Gucci nổi bật'),
+(N'Prada VPR 16M', N'PRA-VPR16M', 1, 4, 11500000, 8200000, 0, N'Gọng kính thời trang cao cấp, thiết kế thanh lịch'),
+(N'Gentle Monster VACANCES', N'GM-VACANCES', 1, 5, 6500000, 4800000, 0, N'Gọng kính oversize phong cách Hàn Quốc'),
+
+-- Lenses (Tròng kính)
+(N'Essilor Crizal Sapphire UV', N'ESS-CRI-SAPH', 2, 6, 3200000, 2100000, 0, N'Tròng kính chống phản chiếu cao cấp, chống tia UV'),
+(N'Essilor Varilux X Series', N'ESS-VAR-X', 2, 6, 8500000, 5800000, 0, N'Tròng kính đa tròng thế hệ mới, chuyển tiêu mượt mà'),
+(N'HOYA BlueControl', N'HOY-BLC-001', 2, 7, 2800000, 1900000, 0, N'Tròng kính lọc ánh sáng xanh từ màn hình'),
+(N'HOYA Sensity', N'HOY-SEN-001', 2, 7, 4500000, 3100000, 0, N'Tròng kính đổi màu thông minh'),
+
+-- Contact Lenses (Kính áp tròng)
+(N'Acuvue Oasys 1-Day', N'ACU-OAS-1D30', 3, 8, 450000, 320000, 0, N'Kính áp tròng ngày, hộp 30 miếng, độ ẩm cao'),
+(N'Acuvue Oasys 2-Week', N'ACU-OAS-2W6', 3, 8, 580000, 410000, 0, N'Kính áp tròng 2 tuần, hộp 6 miếng, công nghệ Hydraclear Plus');
+
+INSERT INTO Frame (Product_ID, Color, Temple_Length, Lens_Width, Bridge_Width, Frame_Shape_Name, Frame_Material_Name, Description) VALUES
+                                                                                                                                       (2, N'Vàng Gold', 140.00, 58.00, 14.00, N'Tròn', N'Kim loại', N'Gọng kính phi công cổ điển màu vàng gold'),
+                                                                                                                                       (3, N'Đen Bóng', 150.00, 50.00, 22.00, N'Vuông', N'Nhựa', N'Gọng kính vuông màu đen bóng phong cách retro'),
+                                                                                                                                       (4, N'Đen Nhám', 133.00, 59.00, 12.00, N'Đa Giác', N'Titan', N'Gọng kính thể thao siêu nhẹ màu đen nhám'),
+                                                                                                                                       (5, N'Nâu Havana', 140.00, 53.00, 18.00, N'Mắt Mèo', N'Nhựa', N'Gọng kính mắt mèo sang trọng màu nâu havana'),
+                                                                                                                                       (6, N'Đỏ Burgundy', 135.00, 52.00, 17.00, N'Oval', N'Kim loại + Nhựa', N'Gọng kính oval màu đỏ burgundy thanh lịch'),
+                                                                                                                                       (7, N'Trắng Trong Suốt', 145.00, 56.00, 20.00, N'Oversized', N'Nhựa', N'Gọng kính oversized trong suốt phong cách Hàn Quốc');
+
+INSERT INTO Lens_Type (Type_Name, Description) VALUES
+                                                   (N'Đơn tròng', N'Tròng kính đơn tròng (Single Vision) sở hữu một độ quang học đồng nhất trên toàn bộ bề mặt kính. Đây là lựa chọn tiêu chuẩn giúp khắc phục các tật khúc xạ như Cận thị, Viễn thị hoặc Loạn thị, mang lại tầm nhìn rõ nét và chân thực ở một khoảng cách cố định (nhìn xa hoặc nhìn gần). Phù hợp với mọi lứa tuổi.'),
+                                                   (N'Đa tròng', N'Kính đa tròng (Progressive) là công nghệ kính thuốc tiên tiến nhất hiện nay cho người lão thị. Khác với kính hai tròng, đa tròng xóa bỏ hoàn toàn đường ranh giới mất thẩm mỹ, cho phép mắt chuyển đổi mượt mà giữa các vùng nhìn: Xa - Trung gian (máy tính) - Gần (đọc sách). Mang lại vẻ ngoài trẻ trung và trải nghiệm thị giác tự nhiên, liền mạch.'),
+                                                   (N'Hai tròng', N'Kính hai tròng là giải pháp truyền thống cho người bị lão thị. Thiết kế tròng được chia làm hai phần rõ rệt bởi một đường ranh giới: vùng trên hỗ trợ nhìn xa (lái xe, đi đường) và vùng bán nguyệt phía dưới hỗ trợ nhìn gần (đọc sách, dùng điện thoại). Kính giúp người đeo không phải tháo ra đeo vào liên tục.');
+
+INSERT INTO Lens (Product_ID, Lens_Type_ID, Index_Value, Diameter, Available_Power_Range, Is_Blue_Light_Block, Is_Photochromic, Description) VALUES
+                                                                                                                                                 (7, 1, 1.67, 65.00, N'-10.00 đến +6.00', 0, 0, N'Tròng kính đơn tròng chống phản chiếu cao cấp'),
+                                                                                                                                                 (8, 2, 1.67, 65.00, N'+0.75 đến +3.50', 0, 0, N'Tròng kính đa tròng thế hệ mới'),
+                                                                                                                                                 (9, 3, 1.60, 70.00, N'-8.00 đến +4.00', 1, 0, N'Tròng kính hai tròng lọc ánh sáng xanh hiệu quả');
+
+INSERT INTO Contact_Lens (Product_ID, Usage_Type, Base_Curve, Diameter, Water_Content, Available_Power_Range, Quantity_Per_Box, Lens_Material, Replacement_Schedule, Color) VALUES
+                                                                                                                                                                                (11, N'Thể thao', 8.50, 14.30, 38.00, N'-12.00 đến +6.00', 30, N'Senofilcon A', N'1 Ngày', N'Trong Suốt'),
+                                                                                                                                                                                (12, N'Làm việc văn phòng', 8.40, 14.00, 38.00, N'-9.00 đến +6.00', 6, N'Senofilcon A', N'2 Tuần', N'Trong Suốt');
