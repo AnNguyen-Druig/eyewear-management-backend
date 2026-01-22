@@ -1,0 +1,27 @@
+package com.swp391.eyewear_management_backend.controller;
+
+import com.swp391.eyewear_management_backend.dto.ProductResponse;
+import com.swp391.eyewear_management_backend.service.ProductService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+@RestController
+@RequestMapping("/api/products")
+@CrossOrigin(origins = "http://localhost:3000")
+public class ProductController {
+    @Autowired
+    private ProductService productService;
+
+    @GetMapping("/search")
+    public ResponseEntity<List<ProductResponse>> searchProducts(
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) Double minPrice,
+            @RequestParam(required = false) Double maxPrice,
+            @RequestParam(required = false) String brand) {
+
+        List<ProductResponse> result = productService.searchProducts(name, minPrice, maxPrice, brand);
+        return ResponseEntity.ok(result);
+    }
+}

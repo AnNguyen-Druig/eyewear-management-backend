@@ -24,8 +24,16 @@ public class ProductImage {
     @Column(name = "Image_URL", nullable = false, columnDefinition = "VARCHAR(MAX)")
     private String imageUrl;
 
-    public ProductImage(Product product, String imageUrl) {
+    @Column(name = "Is_Avatar", nullable = false)
+    private Boolean isAvatar = false;
+
+    public Boolean getAvatar() {
+        return isAvatar;
+    }
+
+    public ProductImage(Product product, String imageUrl, Boolean isAvatar) {
         this.product = product;
         this.imageUrl = imageUrl;
+        this.isAvatar = isAvatar;
     }
 }

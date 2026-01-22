@@ -58,6 +58,7 @@ CREATE TABLE Product_Type (
 CREATE TABLE Product (
     Product_ID INT IDENTITY PRIMARY KEY,
     Product_Name NVARCHAR(255) NOT NULL,
+    SKU NVARCHAR(50),
     Product_Type_ID INT NOT NULL,
     Brand_ID INT NOT NULL,
     Price DECIMAL(15,2) NOT NULL,
@@ -74,6 +75,7 @@ CREATE TABLE Product_Image (
     Image_ID INT IDENTITY PRIMARY KEY,
     Product_ID INT NOT NULL,
     Image_URL VARCHAR(MAX) NOT NULL,
+    Is_Avatar BIT NOT NULL DEFAULT 0,
     CONSTRAINT FK_ProductImage_Product FOREIGN KEY (Product_ID)
         REFERENCES Product(Product_ID)
 );

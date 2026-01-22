@@ -21,6 +21,10 @@ public class Product {
     @Column(name = "Product_Name", nullable = false, columnDefinition = "NVARCHAR(255)")
     private String productName;
 
+    //Luu y coi bang lai de mapping dung table
+    @Column(name = "SKU", columnDefinition = "NVARCHAR(50)")
+    private String SKU;
+
     @ManyToOne(fetch = FetchType.LAZY, cascade = {
             CascadeType.PERSIST, CascadeType.MERGE, CascadeType.DETACH, CascadeType.REFRESH
     })
