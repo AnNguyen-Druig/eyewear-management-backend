@@ -20,7 +20,7 @@ public class LensType {
     @Column(name = "Type_Name", nullable = false, columnDefinition = "NVARCHAR(50)")
     private String typeName;
 
-    @Column(name = "Description", columnDefinition = "NVARCHAR(255)")
+    @Column(name = "Description", columnDefinition = "NVARCHAR(MAX)")
     private String description;
 
     @OneToMany(mappedBy = "lensType", fetch = FetchType.LAZY, cascade = CascadeType.ALL)

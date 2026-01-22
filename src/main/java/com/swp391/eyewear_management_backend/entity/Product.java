@@ -42,7 +42,7 @@ public class Product {
     @Column(name = "Allow_Preorder", nullable = false)
     private Boolean allowPreorder = false;
 
-    @Column(name = "Description", columnDefinition = "NVARCHAR(500)")
+    @Column(name = "Description", columnDefinition = "NVARCHAR(MAX)")
     private String description;
 
     @OneToMany(mappedBy = "product", fetch = FetchType.LAZY, cascade = CascadeType.ALL)

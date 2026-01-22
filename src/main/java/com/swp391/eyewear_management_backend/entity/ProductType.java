@@ -20,7 +20,7 @@ public class ProductType {
     @Column(name = "Type_Name", nullable = false, columnDefinition = "NVARCHAR(100)")
     private String typeName;
 
-    @Column(name = "Description", columnDefinition = "NVARCHAR(255)")
+    @Column(name = "Description", columnDefinition = "NVARCHAR(MAX)")
     private String description;
 
     @OneToMany(mappedBy = "productType", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
