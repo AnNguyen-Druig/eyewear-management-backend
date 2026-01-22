@@ -21,7 +21,7 @@ public class ProductImage {
     @JoinColumn(name = "Product_ID", nullable = false)
     private Product product;
 
-    @Column(name = "Image_URL", nullable = false, columnDefinition = "NVARCHAR(500)")
+    @Column(name = "Image_URL", nullable = false, columnDefinition = "VARCHAR(MAX)")
     private String imageUrl;
 
     public ProductImage(Product product, String imageUrl) {
