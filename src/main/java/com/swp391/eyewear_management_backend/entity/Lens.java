@@ -44,7 +44,7 @@ public class Lens {
     @Column(name = "Is_Photochromic")
     private Boolean isPhotochromic;
 
-    @Column(name = "Description", columnDefinition = "NVARCHAR(255)")
+    @Column(name = "Description", columnDefinition = "NVARCHAR(MAX)")
     private String description;
 
     @OneToMany(mappedBy = "lens", fetch = FetchType.LAZY, cascade = CascadeType.ALL)

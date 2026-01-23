@@ -32,7 +32,7 @@ public class OrderDetail {
     @Column(name = "Unit_Price", nullable = false, precision = 15, scale = 2)
     private BigDecimal unitPrice;
 
-    @Column(name = "Note", columnDefinition = "NVARCHAR(500)")
+    @Column(name = "Note", columnDefinition = "NVARCHAR(MAX)")
     private String note;
 
     @Column(name = "Quantity", nullable = false)

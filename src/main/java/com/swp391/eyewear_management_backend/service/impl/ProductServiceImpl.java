@@ -1,5 +1,6 @@
 package com.swp391.eyewear_management_backend.service.impl;
 
+<<<<<<< HEAD
 import com.swp391.eyewear_management_backend.dto.ProductResponse;
 import com.swp391.eyewear_management_backend.entity.Product;
 import com.swp391.eyewear_management_backend.mapper.ProductMapper;
@@ -27,4 +28,7 @@ public class ProductServiceImpl implements ProductService {
                 .map(productMapper::toProductResponse)
                 .collect(Collectors.toList());
     }
+=======
+public class ProductServiceImpl {
+>>>>>>> 62065f3de541e15699213eb9a6b743b118da0fac
 }

@@ -46,7 +46,7 @@ public class Product {
     @Column(name = "Allow_Preorder", nullable = false)
     private Boolean allowPreorder = false;
 
-    @Column(name = "Description", columnDefinition = "NVARCHAR(500)")
+    @Column(name = "Description", columnDefinition = "NVARCHAR(MAX)")
     private String description;
 
     @OneToMany(mappedBy = "product", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
@@ -71,13 +71,11 @@ public class Product {
     private ContactLens contactLens;
 
     public Product(String productName, ProductType productType, Brand brand, BigDecimal price,
-                   BigDecimal costPrice, Boolean allowPreorder, String description) {
+                   BigDecimal costPrice) {
         this.productName = productName;
         this.productType = productType;
         this.brand = brand;
         this.price = price;
         this.costPrice = costPrice;
-        this.allowPreorder = allowPreorder;
-        this.description = description;
     }
 }

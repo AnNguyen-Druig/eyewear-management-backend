@@ -41,7 +41,7 @@ public class Frame {
     @Column(name = "Frame_Material_Name", columnDefinition = "NVARCHAR(255)")
     private String frameMaterialName;
 
-    @Column(name = "Description", columnDefinition = "NVARCHAR(255)")
+    @Column(name = "Description", columnDefinition = "NVARCHAR(MAX)")
     private String description;
 
     public Frame(Product product, String color, BigDecimal templeLength, BigDecimal lensWidth,

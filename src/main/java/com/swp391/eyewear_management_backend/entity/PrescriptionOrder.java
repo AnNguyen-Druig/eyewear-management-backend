@@ -34,7 +34,7 @@ public class PrescriptionOrder {
     @Column(name = "Prescription_Date", nullable = false)
     private LocalDateTime prescriptionDate;
 
-    @Column(name = "Note", columnDefinition = "NVARCHAR(500)")
+    @Column(name = "Note", columnDefinition = "NVARCHAR(MAX)")
     private String note;
 
     @Column(name = "Complete_Date")
