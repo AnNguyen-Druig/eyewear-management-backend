@@ -3,7 +3,7 @@ package com.swp391.eyewear_management_backend.service.impl;
 import com.swp391.eyewear_management_backend.dto.ProductResponse;
 import com.swp391.eyewear_management_backend.entity.Product;
 import com.swp391.eyewear_management_backend.mapper.ProductMapper;
-import com.swp391.eyewear_management_backend.repository.ProductRepository;
+import com.swp391.eyewear_management_backend.repository.ProductRepo;
 import com.swp391.eyewear_management_backend.service.ProductService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -15,7 +15,7 @@ import java.util.stream.Collectors;
 public class ProductServiceImpl implements ProductService {
 
     @Autowired
-    private ProductRepository productRepository;
+    private ProductRepo productRepository;
 
     @Autowired
     private ProductMapper productMapper;
