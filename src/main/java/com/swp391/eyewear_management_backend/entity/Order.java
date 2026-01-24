@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Entity
-@Table(name = "Order")
+@Table(name = "[Order]")
 @Data
 @NoArgsConstructor
 public class Order {
