@@ -8,7 +8,6 @@ CREATE TABLE Role (
 );
 
 CREATE TABLE [User] (
-<<<<<<< HEAD
     User_ID INT IDENTITY PRIMARY KEY,
     Username NVARCHAR(50) UNIQUE NOT NULL,
     Password NVARCHAR(100) NOT NULL,
@@ -23,22 +22,6 @@ CREATE TABLE [User] (
     CONSTRAINT FK_User_Role FOREIGN KEY (Role_ID)
         REFERENCES Role(Role_ID),
 	CONSTRAINT CK_User_Status CHECK (Status IN (0,1))
-=======
-                        User_ID INT IDENTITY PRIMARY KEY,
-                        Username NVARCHAR(50) UNIQUE NOT NULL,
-                        Password NVARCHAR(100) NOT NULL,
-                        Email NVARCHAR(100) UNIQUE NOT NULL,
-                        Phone VARCHAR(15) NOT NULL,
-                        Role_ID INT NOT NULL,
-                        Status BIT NOT NULL,
-                        Name NVARCHAR(100) NOT NULL,
-                        Address NVARCHAR(255) NOT NULL,
-                        Date_of_Birth DATE,
-                        ID_Number VARCHAR(20) UNIQUE,
-                        CONSTRAINT FK_User_Role FOREIGN KEY (Role_ID)
-                            REFERENCES Role(Role_ID),
-                        CONSTRAINT CK_User_Status CHECK (Status IN (0,1))
->>>>>>> 62065f3de541e15699213eb9a6b743b118da0fac
 );
 
 CREATE TABLE Brand (
@@ -73,7 +56,6 @@ CREATE TABLE Product_Type (
 );
 
 CREATE TABLE Product (
-<<<<<<< HEAD
     Product_ID INT IDENTITY PRIMARY KEY,
     Product_Name NVARCHAR(255) NOT NULL,
     SKU NVARCHAR(50),
@@ -96,20 +78,6 @@ CREATE TABLE Product_Image (
     Is_Avatar BIT NOT NULL DEFAULT 0,
     CONSTRAINT FK_ProductImage_Product FOREIGN KEY (Product_ID)
         REFERENCES Product(Product_ID)
-=======
-                         Product_ID INT IDENTITY PRIMARY KEY,
-                         Product_Name NVARCHAR(255) NOT NULL,
-                         SKU NVARCHAR(50),
-                         Product_Type_ID INT NOT NULL,
-                         Brand_ID INT NOT NULL,
-                         Price DECIMAL(15,2) NOT NULL,
-                         Cost_Price DECIMAL(15,2) NOT NULL,
-                         Allow_Preorder BIT NOT NULL DEFAULT 0,
-                         Description NVARCHAR(500),
-                         CONSTRAINT FK_Product_ProductType FOREIGN KEY (Product_Type_ID)
-                             REFERENCES Product_Type(Product_Type_ID),
-                         CONSTRAINT FK_Product_Brand FOREIGN KEY (Brand_ID)
-                             REFERENCES Brand(Brand_ID)
 );
 
 CREATE TABLE Product_Image (
@@ -119,7 +87,6 @@ CREATE TABLE Product_Image (
                                Is_Avatar BIT NOT NULL DEFAULT 0,
                                CONSTRAINT FK_ProductImage_Product FOREIGN KEY (Product_ID)
                                    REFERENCES Product(Product_ID)
->>>>>>> 62065f3de541e15699213eb9a6b743b118da0fac
 );
 
 CREATE TABLE Inventory (
@@ -390,7 +357,7 @@ CREATE TABLE Prescription_Order (
 );
 
 CREATE TABLE Prescription_Order_Detail (
-<<<<<<< HEAD
+
     Prescription_Order_Detail_ID INT IDENTITY PRIMARY KEY,
     Prescription_Order_ID INT NOT NULL,
     Frame_ID INT,
@@ -408,25 +375,6 @@ CREATE TABLE Prescription_Order_Detail (
         REFERENCES Frame(Frame_ID),
     CONSTRAINT FK_PrescriptionDetail_Lens FOREIGN KEY (Lens_ID)
         REFERENCES Lens(Lens_ID)
-=======
-                                           Prescription_Order_Detail_ID INT IDENTITY PRIMARY KEY,
-                                           Prescription_Order_ID INT NOT NULL,
-                                           Frame_ID INT,
-                                           Lens_ID INT,
-                                           Right_Eye_Sph DECIMAL(5,2),
-                                           Right_Eye_Cyl DECIMAL(5,2),
-                                           Right_Eye_Axis INT,
-                                           Left_Eye_Sph DECIMAL(5,2),
-                                           Left_Eye_Cyl DECIMAL(5,2),
-                                           Left_Eye_Axis INT,
-                                           Sub_Total DECIMAL(15,2) NOT NULL,
-                                           CONSTRAINT FK_PrescriptionDetail_Order FOREIGN KEY (Prescription_Order_ID)
-                                               REFERENCES Prescription_Order(Prescription_Order_ID),
-                                           CONSTRAINT FK_PrescriptionDetail_Frame FOREIGN KEY (Frame_ID)
-                                               REFERENCES Frame(Frame_ID),
-                                           CONSTRAINT FK_PrescriptionDetail_Lens FOREIGN KEY (Lens_ID)
-                                               REFERENCES Lens(Lens_ID)
->>>>>>> 62065f3de541e15699213eb9a6b743b118da0fac
 );
 
 INSERT INTO [User]
