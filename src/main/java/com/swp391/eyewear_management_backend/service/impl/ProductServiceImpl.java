@@ -1,5 +1,6 @@
 package com.swp391.eyewear_management_backend.service.impl;
 
+import com.swp391.eyewear_management_backend.dto.ProductDetailResponse;
 import com.swp391.eyewear_management_backend.dto.ProductResponse;
 import com.swp391.eyewear_management_backend.entity.Product;
 import com.swp391.eyewear_management_backend.mapper.ProductMapper;
@@ -27,4 +28,15 @@ public class ProductServiceImpl implements ProductService {
                 .map(productMapper::toProductResponse)
                 .collect(Collectors.toList());
     }
+
+    @Override
+    public ProductDetailResponse getProductById(Long id) {
+        Product product = productRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Not found"));
+
+        // MapStruct tự động chọn trả về FrameResponse hay LensResponse
+        return productMapper.toDetailResponse(product);
+    }
+
+
 }
