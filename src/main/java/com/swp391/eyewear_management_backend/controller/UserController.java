@@ -6,6 +6,7 @@ import com.swp391.eyewear_management_backend.dto.response.ApiResponse;
 import com.swp391.eyewear_management_backend.dto.response.UserRespone;
 import com.swp391.eyewear_management_backend.service.UserService;
 import com.swp391.eyewear_management_backend.service.impl.UserServiceImpl;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +22,7 @@ import java.util.List;
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 @Slf4j
+@SecurityRequirement(name = "bearerAuth")
 public class UserController {
 
     //UserService userService;
