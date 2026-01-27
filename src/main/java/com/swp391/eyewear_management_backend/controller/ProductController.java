@@ -1,6 +1,6 @@
 package com.swp391.eyewear_management_backend.controller;
 
-import com.swp391.eyewear_management_backend.dto.ProductResponse;
+import com.swp391.eyewear_management_backend.dto.response.ProductResponse;
 import com.swp391.eyewear_management_backend.service.ProductService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;

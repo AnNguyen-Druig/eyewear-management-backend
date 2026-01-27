@@ -1,4 +1,4 @@
-package com.swp391.eyewear_management_backend.dto;
+package com.swp391.eyewear_management_backend.dto.response;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

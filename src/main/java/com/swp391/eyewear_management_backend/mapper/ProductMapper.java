@@ -1,6 +1,6 @@
 package com.swp391.eyewear_management_backend.mapper;
 
-import com.swp391.eyewear_management_backend.dto.ProductResponse;
+import com.swp391.eyewear_management_backend.dto.response.ProductResponse;
 import com.swp391.eyewear_management_backend.entity.Product;
 import com.swp391.eyewear_management_backend.entity.ProductImage;
 import org.mapstruct.Mapper;
