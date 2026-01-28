@@ -6,26 +6,53 @@ import org.springframework.http.HttpStatusCode;
 
 @Getter
 public enum ErrorCode {
+
     UNCATEGORIZED_EXCEPTION(9999, "Uncategorized Exception", HttpStatus.INTERNAL_SERVER_ERROR),
-    INVALID_KEY(1001, "Invalid message Key",  HttpStatus.BAD_REQUEST),
+    INVALID_KEY(1001, "Invalid message key", HttpStatus.BAD_REQUEST),
+
+    // Auth
+    UNAUTHENTICATED(1006, "Unauthenticated", HttpStatus.UNAUTHORIZED),      // 401
+    UNAUTHORIZED(1007, "You do not have permission", HttpStatus.FORBIDDEN), // 403
+
+    // User
     USER_EXISTED(1002, "User already exists", HttpStatus.BAD_REQUEST),
     USER_NOT_EXISTED(1003, "User not exists", HttpStatus.NOT_FOUND),
-    USERNAME_INVALID(1004, "Username must be at least {min} characters!", HttpStatus.BAD_REQUEST),
-    PASSWORD_INVALID(1005, "Password must be at least {min} characters!", HttpStatus.BAD_REQUEST),
-    UNAUTHENTICATED(1006, "Unauthenticated", HttpStatus.UNAUTHORIZED),          //401
-    UNAUTHORIZED(1007, "You do not have permission", HttpStatus.FORBIDDEN),     //403
-    INVALID_DOB(1008, "Your age must be at least {min}", HttpStatus.BAD_REQUEST),         //400
+
+    USERNAME_REQUIRED(1012, "Username is required", HttpStatus.BAD_REQUEST),
+    USERNAME_INVALID(1004, "Username must be at least 8 characters!", HttpStatus.BAD_REQUEST),
+
+    PASSWORD_REQUIRED(1013, "Password is required", HttpStatus.BAD_REQUEST),
+    PASSWORD_INVALID(1005, "Password must be at least 8 chars and include uppercase, lowercase, digit!", HttpStatus.BAD_REQUEST),
+
+    EMAIL_REQUIRED(1014, "Email is required", HttpStatus.BAD_REQUEST),
+    EMAIL_INVALID(1015, "Email is invalid", HttpStatus.BAD_REQUEST),
     EMAIL_EXISTED(1009, "Email already exists", HttpStatus.BAD_REQUEST),
+
+    PHONE_REQUIRED(1016, "Phone is required", HttpStatus.BAD_REQUEST),
+    PHONE_INVALID(1017, "Phone must be 10 or 11 digits", HttpStatus.BAD_REQUEST),
+
+    NAME_REQUIRED(1018, "Name is required", HttpStatus.BAD_REQUEST),
+    NAME_INVALID(1019, "Name is invalid", HttpStatus.BAD_REQUEST),
+
+    DOB_REQUIRED(1020, "Date of birth is required", HttpStatus.BAD_REQUEST),
+    DOB_INVALID(1008, "Date of birth must be before today", HttpStatus.BAD_REQUEST),
+
+    ADDRESS_INVALID(1021, "Address is invalid", HttpStatus.BAD_REQUEST),
+
+    IDNUMBER_INVALID(1022, "Id number must be exactly 12 digits", HttpStatus.BAD_REQUEST),
+    IDNUMBER_EXISTED(1011, "Id number already exists", HttpStatus.BAD_REQUEST),
+
     ROLE_NOT_FOUND(1010, "Role not found", HttpStatus.NOT_FOUND),
     ;
+
+    private final int code;
+    private final String message;
+    private final HttpStatusCode httpStatusCode;
 
     ErrorCode(int code, String message, HttpStatusCode httpStatusCode) {
         this.code = code;
         this.message = message;
         this.httpStatusCode = httpStatusCode;
     }
-
-    private HttpStatusCode httpStatusCode;
-    private int code;
-    private String message;
 }
+

@@ -16,7 +16,7 @@ public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "User_ID")
-    private Long userID;
+    private Long userId;
 
     @Column(name = "Username", unique = true, nullable = false, columnDefinition = "NVARCHAR(50)")
     private String username;
@@ -43,10 +43,10 @@ public class User {
     @Column(name = "Address", columnDefinition = "NVARCHAR(255)")
     private String address;
 
-    @Column(name = "Date_of_Birth", nullable = false)
+    @Column(name = "Date_of_Birth")
     private LocalDate dateOfBirth;
 
-    @Column(name = "ID_Number", unique = true, columnDefinition = "VARCHAR(20)")
+    @Column(name = "ID_Number", columnDefinition = "VARCHAR(20)")
     private String idNumber;
 
     @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)

@@ -20,7 +20,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import java.util.HashSet;
 import java.util.List;
 
 @Service
@@ -36,17 +35,30 @@ public class UserServiceImpl {
 
     public UserRespone createRequest(UserCreationRequest request) {
 
+        String username = request.getUsername().trim();
+        String email = request.getEmail().trim();
+
+        //Optional - Có thể nhập hoặc để trống
+        String address = request.getAddress() != null ? request.getAddress().trim() : null;
+        String idNumber = request.getIdNumber() != null ? request.getIdNumber().trim() : null;
+
         if(userRepo.existsByUsername(request.getUsername())) throw new AppException(ErrorCode.USER_EXISTED);
         if(userRepo.existsByEmail(request.getEmail())) throw new AppException(ErrorCode.EMAIL_EXISTED);
+        if (idNumber != null && userRepo.existsByIdNumber(idNumber)) {
+            throw new AppException(ErrorCode.IDNUMBER_EXISTED);
+        }
 
         User user = userMapper.toUser(request);
+        user.setUsername(username);
+        user.setEmail(email);
+        user.setAddress(address);
+        user.setIdNumber(idNumber);
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setStatus(true);
 
         Role role = roleRepo.findByTypeName("CUSTOMER")
                 .orElseThrow(() -> new AppException(ErrorCode.ROLE_NOT_FOUND));
         user.setRole(role);
-
 
         return userMapper.toUserRespone(userRepo.save(user));
     }
@@ -67,6 +79,17 @@ public class UserServiceImpl {
 
         User user = userRepo.findByUsername(username).orElseThrow(() ->
                 new AppException(ErrorCode.USER_NOT_EXISTED));
+
+        String newEmail = request.getEmail() != null ? request.getEmail().trim() : null;
+        String newIdNumber = request.getIdNumber() != null ? request.getIdNumber().trim() : null;
+
+        // Check unique nếu user có gửi email/idNumber
+        if (newEmail != null && userRepo.existsByEmailAndUserIdNot(newEmail, user.getUserId())) {
+            throw new AppException(ErrorCode.EMAIL_EXISTED);
+        }
+        if (newIdNumber != null && userRepo.existsByIdNumberAndUserIdNot(newIdNumber, user.getUserId())) {
+            throw new AppException(ErrorCode.IDNUMBER_EXISTED);
+        }
 
         userMapper.updateUser(user, request);
 
@@ -99,5 +122,12 @@ public class UserServiceImpl {
 
     public void deleteUserById(Long id) {
         userRepo.deleteById(id);
+    }
+
+    //hàm normalize để convert "" --> null , check trimOrNull
+    private String normalize(String s) {
+        if(s == null) return null;
+        String exist = s.trim();
+        return exist.isEmpty() ? s : exist;
     }
 }

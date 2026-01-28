@@ -16,5 +16,6 @@ public interface UserMapper {
 
     //@Mapping(target = "roles", ignore = true)
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+    @Mapping(source = "dob", target = "dateOfBirth")
     void updateUser(@MappingTarget User user, UserUpdateRequest request);
 }
