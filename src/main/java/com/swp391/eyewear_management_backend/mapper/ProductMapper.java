@@ -60,6 +60,7 @@ public interface ProductMapper {
     @Mapping(source = "frame.color", target = "color")
     @Mapping(source = "frame.frameMaterialName", target = "material")
     @Mapping(source = "frame.frameShapeName", target = "frameShape")
+    @Mapping(source = "frame.description", target = "description")
     FrameResponse toFrameResponse(Product product);
 
     // 2. Map cho Lens
@@ -71,6 +72,7 @@ public interface ProductMapper {
     @Mapping(target = "imageUrls", expression = "java(mapImages(product.getImages()))")
     // Map các trường riêng của Lens
     @Mapping(source = "lens.indexValue", target = "indexValue")
+    @Mapping(source = "lens.description", target = "description")
     LensResponse toLensResponse(Product product);
 
     // 3. Map cho Contact Lens

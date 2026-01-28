@@ -11,18 +11,9 @@ import java.math.BigDecimal;
 import java.util.List;
 
 @Data
-@JsonTypeInfo(
-        use = JsonTypeInfo.Id.NAME,
-        include = JsonTypeInfo.As.PROPERTY,
-        property = "product_type"
-)
-@JsonSubTypes({
-        @JsonSubTypes.Type(value = FrameResponse.class, name = "FRAME"),
-        @JsonSubTypes.Type(value = LensResponse.class, name = "LENS"),
-        @JsonSubTypes.Type(value = ContactLensResponse.class, name = "CONTACT_LENS")
-})
 
 public abstract class ProductDetailResponse {
+    private String Product_Type;
     private Long id;
     private String name;
     private String sku;

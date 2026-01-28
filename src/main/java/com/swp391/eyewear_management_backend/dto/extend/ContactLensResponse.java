@@ -7,6 +7,7 @@ import lombok.EqualsAndHashCode;
 @Data
 @EqualsAndHashCode(callSuper = false)
 public class ContactLensResponse extends ProductDetailResponse {
+    private String Description;
     private String waterContent;
     private String diameter;
 }

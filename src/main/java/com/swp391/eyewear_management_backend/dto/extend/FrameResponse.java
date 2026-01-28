@@ -7,6 +7,7 @@ import lombok.EqualsAndHashCode;
 @Data
 @EqualsAndHashCode(callSuper = false)
 public class FrameResponse extends ProductDetailResponse {
+    private String Description;
     private String color;
     private String material;
     private String frameShape;

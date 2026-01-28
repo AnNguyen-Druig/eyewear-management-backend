@@ -7,7 +7,6 @@ import lombok.EqualsAndHashCode;
 @Data
 @EqualsAndHashCode(callSuper = false)
 public class LensResponse extends ProductDetailResponse {
-//    private String sphere;     // Độ cầu
-//    private String cylinder;   // Độ loạn
+    private String Description;
     private String indexValue; // Chiết suất
 }
