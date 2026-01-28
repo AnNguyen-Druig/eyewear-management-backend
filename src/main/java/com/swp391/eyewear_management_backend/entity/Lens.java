@@ -5,6 +5,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 @Entity
 @Table(name = "Lens")
@@ -48,7 +49,7 @@ public class Lens {
     private String description;
 
     @OneToMany(mappedBy = "lens", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-    private java.util.List<PrescriptionOrderDetail> prescriptionOrderDetails;
+    private List<PrescriptionOrderDetail> prescriptionOrderDetails;
 
     public Lens(Product product, LensType lensType, BigDecimal indexValue, BigDecimal diameter,
                 String availablePowerRange, Boolean isBlueLightBlock, Boolean isPhotochromic, String description) {

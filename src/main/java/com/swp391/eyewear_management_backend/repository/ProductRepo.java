@@ -10,7 +10,7 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 
-@RepositoryRestResource(path = "show-all-products")
+
 public interface ProductRepo extends JpaRepository<Product,Long> {
     @Query("SELECT p FROM Product p WHERE " +
             "(:name IS NULL OR p.productName LIKE %:name%) AND " +
@@ -21,4 +21,7 @@ public interface ProductRepo extends JpaRepository<Product,Long> {
                                  @Param("minPrice") Double minPrice,
                                  @Param("maxPrice") Double maxPrice,
                                  @Param("category") String brand);
+
+
+
 }

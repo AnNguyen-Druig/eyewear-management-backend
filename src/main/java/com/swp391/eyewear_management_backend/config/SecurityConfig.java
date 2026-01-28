@@ -28,7 +28,8 @@ import javax.crypto.spec.SecretKeySpec;
 @EnableMethodSecurity
 public class SecurityConfig {
 
-    private final String[] PUBLIC_ENDPOINTS = {"/users", "/auth/token", "/auth/introspect"};
+    private final String[] PUBLIC_ENDPOINTS = {"/users", "/auth/token", "/auth/introspect", };
+    private final String[] WHITE_ENDPOINTS_LIST = {"/api/products/search"};
     private static final String[] SWAGGER_WHITELIST = {
             "/v3/api-docs/**",
             "/swagger-ui/**",
@@ -46,6 +47,7 @@ public class SecurityConfig {
         httpSecurity.authorizeHttpRequests(request -> request
                 .requestMatchers(SWAGGER_WHITELIST).permitAll()
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                .requestMatchers(HttpMethod.GET, WHITE_ENDPOINTS_LIST).permitAll()
                 .requestMatchers(HttpMethod.POST, PUBLIC_ENDPOINTS).permitAll()
                 .anyRequest().authenticated());
 
