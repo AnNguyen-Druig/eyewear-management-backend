@@ -60,6 +60,7 @@ public interface ProductMapper {
     @Mapping(source = "frame.frameMaterialName", target = "material")
     @Mapping(source = "frame.frameShapeName", target = "frameShape")
     @Mapping(source = "frame.description", target = "description")
+    @Mapping(source = "productType.typeName", target = "product_Type")
     FrameResponse toFrameResponse(Product product);
 
     // 2. Map cho Lens
@@ -72,6 +73,7 @@ public interface ProductMapper {
     // Map các trường riêng của Lens
     @Mapping(source = "lens.indexValue", target = "indexValue")
     @Mapping(source = "lens.description", target = "description")
+    @Mapping(source = "productType.typeName", target = "product_Type")
     LensResponse toLensResponse(Product product);
 
     // 3. Map cho Contact Lens
@@ -84,6 +86,7 @@ public interface ProductMapper {
     // Map các trường riêng
     @Mapping(source = "contactLens.waterContent", target = "waterContent")
     @Mapping(source = "contactLens.diameter", target = "diameter")
+    @Mapping(source = "productType.typeName", target = "product_Type")
     ContactLensResponse toContactLensResponse(Product product);
 
     // Helper map images (như cũ)
