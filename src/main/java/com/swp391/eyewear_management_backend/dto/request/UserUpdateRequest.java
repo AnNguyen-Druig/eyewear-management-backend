@@ -14,12 +14,11 @@ import java.util.List;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class UserUpdateRequest {
 
-    @Size(min = 8, message = "PASSWORD_INVALID")
-    String password;      // optional: nếu null thì không đổi
-
     String email;         // optional (thường cần verify nếu đổi)
     String phone;         // optional
     String name;          // optional
     LocalDate dob;        // optional
     String address;       // optional (nếu bạn muốn cho đổi)
+    String idNumber;
+
 }

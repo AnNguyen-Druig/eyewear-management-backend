@@ -56,6 +56,18 @@ public class UserServiceImpl {
         return userMapper.toUserRespone(user);
     }
 
+    public UserRespone updateMyInfo(UserUpdateRequest request) {
+        var context = SecurityContextHolder.getContext();
+        String username = context.getAuthentication().getName();
+
+        User user = userRepo.findByUsername(username).orElseThrow(() ->
+                new AppException(ErrorCode.USER_NOT_EXISTED));
+
+        userMapper.updateUser(user, request);
+
+        return userMapper.toUserRespone(userRepo.save(user));
+    }
+
     //Phân quyền dựa trên Method
     @PreAuthorize("hasRole('ADMIN')")   //@PreAuthorize("hasRole('X')") sẽ chặn các user mà có role ko trùng với role X     --> Thỏa Method mới đc vào method
     //@PreAuthorize("hasAuthority('UPDATE_POST')")
@@ -71,14 +83,14 @@ public class UserServiceImpl {
         return userMapper.toUserRespone(userRepo.findById(id).orElseThrow(() -> new RuntimeException(ErrorCode.USER_NOT_EXISTED.getMessage())));
     }
 
-    public UserRespone updateUser(Long userId, UserUpdateRequest request) {
-        User user = userRepo.findById(userId).orElseThrow(() -> new RuntimeException(ErrorCode.USER_NOT_EXISTED.getMessage()));
-        userMapper.updateUser(user, request);
-        user.setPassword(passwordEncoder.encode(request.getPassword()));
-
-
-        return userMapper.toUserRespone(userRepo.save(user));
-    }
+//    public UserRespone updateUser(Long userId, UserUpdateRequest request) {
+//        User user = userRepo.findById(userId).orElseThrow(() -> new RuntimeException(ErrorCode.USER_NOT_EXISTED.getMessage()));
+//        userMapper.updateUser(user, request);
+//        user.setPassword(passwordEncoder.encode(request.getPassword()));
+//
+//
+//        return userMapper.toUserRespone(userRepo.save(user));
+//    }
 
     public void deleteUserById(Long id) {
         userRepo.deleteById(id);

@@ -30,22 +30,20 @@ public class User {
     @Column(name = "Phone", nullable = false, columnDefinition = "VARCHAR(15)")
     private String phone;
 
-    @ManyToOne(fetch = FetchType.LAZY, cascade = {
-            CascadeType.PERSIST, CascadeType.MERGE, CascadeType.DETACH, CascadeType.REFRESH
-    })
-    @JoinColumn(name = "Role_ID", nullable = false)
+    @ManyToOne
+    @JoinColumn(name = "Role_ID")
     private Role role;
 
-    @Column(name = "Status", nullable = false)
+    @Column(name = "Status")
     private Boolean status;
 
     @Column(name = "Name", nullable = false, columnDefinition = "NVARCHAR(100)")
     private String name;
 
-    @Column(name = "Address", nullable = false, columnDefinition = "NVARCHAR(255)")
+    @Column(name = "Address", columnDefinition = "NVARCHAR(255)")
     private String address;
 
-    @Column(name = "Date_of_Birth")
+    @Column(name = "Date_of_Birth", nullable = false)
     private LocalDate dateOfBirth;
 
     @Column(name = "ID_Number", unique = true, columnDefinition = "VARCHAR(20)")

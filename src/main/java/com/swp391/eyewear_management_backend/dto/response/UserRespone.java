@@ -12,12 +12,14 @@ import java.util.Set;
 @Builder
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class UserRespone {
-    String id;
+
     String username;
     String email;
     String phone;
     String name;
     LocalDate dob;
+    String address;
+    String idNumber;
     RoleResponse role;
 }
 

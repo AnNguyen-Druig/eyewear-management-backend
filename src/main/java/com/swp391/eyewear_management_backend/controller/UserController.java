@@ -63,10 +63,17 @@ public class UserController {
                 .build();
     }
 
-    @PutMapping("/{userId}")
-    UserRespone updateUser(@PathVariable Long userId, @RequestBody @Valid UserUpdateRequest request) {
-        return userServiceImpl.updateUser(userId, request);
+    @PutMapping("/my-info")
+    ApiResponse<UserRespone> updateMyInfo(@RequestBody @Valid UserUpdateRequest request) {
+        return ApiResponse.<UserRespone>builder()
+                .result(userServiceImpl.updateMyInfo(request))
+                .build();
     }
+
+//    @PutMapping("/{userId}")
+//    UserRespone updateUser(@PathVariable Long userId, @RequestBody @Valid UserUpdateRequest request) {
+//        return userServiceImpl.updateUser(userId, request);
+//    }
 
     @DeleteMapping("/{userId}")
     public String deleteUserById(@PathVariable Long userId) {

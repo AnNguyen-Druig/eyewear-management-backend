@@ -4,18 +4,17 @@ import com.swp391.eyewear_management_backend.dto.request.UserCreationRequest;
 import com.swp391.eyewear_management_backend.dto.request.UserUpdateRequest;
 import com.swp391.eyewear_management_backend.dto.response.UserRespone;
 import com.swp391.eyewear_management_backend.entity.User;
-import org.mapstruct.Mapper;
-import org.mapstruct.Mapping;
-import org.mapstruct.MappingTarget;
+import org.mapstruct.*;
 
-@Mapper(componentModel = "spring")
+@Mapper(componentModel = "spring", uses = RoleMapper.class)
 public interface UserMapper {
+    @Mapping(source = "dob", target = "dateOfBirth")
     User toUser(UserCreationRequest request);
 
-    //@Mapping(source = "firstName", target = "lastName")   --> Map field firstName và lastName thành giống nhau luôn
-    //@Mapping(target = "lastName", ignore = true)          --> bỏ qua ko map field lastName --> JSON : "lastName": null
+    @Mapping(source = "dateOfBirth", target = "dob")
     UserRespone toUserRespone(User user);
 
     //@Mapping(target = "roles", ignore = true)
+    @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     void updateUser(@MappingTarget User user, UserUpdateRequest request);
 }
