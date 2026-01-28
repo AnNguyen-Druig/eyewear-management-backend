@@ -37,11 +37,16 @@ public class UserServiceImpl {
     public UserRespone createRequest(UserCreationRequest request) {
 
         if(userRepo.existsByUsername(request.getUsername())) throw new AppException(ErrorCode.USER_EXISTED);
+        if(userRepo.existsByEmail(request.getEmail())) throw new AppException(ErrorCode.EMAIL_EXISTED);
 
         User user = userMapper.toUser(request);
         user.setPassword(passwordEncoder.encode(request.getPassword()));
+        user.setStatus(true);
 
-        //user.setRoles(roles);
+        Role role = roleRepo.findByTypeName("CUSTOMER")
+                .orElseThrow(() -> new AppException(ErrorCode.ROLE_NOT_FOUND));
+        user.setRole(role);
+
 
         return userMapper.toUserRespone(userRepo.save(user));
     }

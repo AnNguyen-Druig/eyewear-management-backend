@@ -22,4 +22,5 @@ public class UserUpdateRequest {
     String name;          // optional
     LocalDate dob;        // optional
     String address;       // optional (nếu bạn muốn cho đổi)
+    String idNumber;
 }

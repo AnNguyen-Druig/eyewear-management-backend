@@ -11,5 +11,7 @@ import org.mapstruct.Mapping;
 public interface RoleMapper {
 
     Role toRole(RoleRequest request);
+
+    @Mapping(source = "typeName", target = "name")
     RoleResponse toRoleResponse(Role role);
 }

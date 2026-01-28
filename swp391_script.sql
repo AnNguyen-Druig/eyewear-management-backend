@@ -16,8 +16,8 @@ CREATE TABLE [User] (
     Role_ID INT NOT NULL,
     Status BIT NOT NULL,
     Name NVARCHAR(100) NOT NULL,
-    Address NVARCHAR(255) NOT NULL,
-    Date_of_Birth DATE,
+    Address NVARCHAR(255),
+    Date_of_Birth DATE NOT NULL,
     ID_Number VARCHAR(20) UNIQUE,
     CONSTRAINT FK_User_Role FOREIGN KEY (Role_ID)
         REFERENCES Role(Role_ID),

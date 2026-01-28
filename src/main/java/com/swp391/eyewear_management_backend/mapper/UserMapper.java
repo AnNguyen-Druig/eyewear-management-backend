@@ -8,12 +8,15 @@ import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
 
-@Mapper(componentModel = "spring")
+
+@Mapper(componentModel = "spring", uses = RoleMapper.class)     //tiêm RoleMapper vào UserMapper để trả về role.typeName khi UserResponse cần RoleResponse roleResponse
 public interface UserMapper {
+
+    @Mapping(source = "dob", target = "dateOfBirth")
     User toUser(UserCreationRequest request);
 
-    //@Mapping(source = "firstName", target = "lastName")   --> Map field firstName và lastName thành giống nhau luôn
-    //@Mapping(target = "lastName", ignore = true)          --> bỏ qua ko map field lastName --> JSON : "lastName": null
+    @Mapping(source = "userID", target = "id")
+    @Mapping(source = "dateOfBirth", target = "dob")
     UserRespone toUserRespone(User user);
 
     //@Mapping(target = "roles", ignore = true)
