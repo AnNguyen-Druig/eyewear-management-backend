@@ -2,6 +2,9 @@ package com.swp391.eyewear_management_backend.service.impl;
 
 import com.swp391.eyewear_management_backend.dto.response.ProductDetailResponse;
 import com.swp391.eyewear_management_backend.dto.response.ProductResponse;
+import com.swp391.eyewear_management_backend.dto.response.extend.ContactLensResponse;
+import com.swp391.eyewear_management_backend.dto.response.extend.FrameResponse;
+import com.swp391.eyewear_management_backend.dto.response.extend.LensResponse;
 import com.swp391.eyewear_management_backend.entity.Product;
 import com.swp391.eyewear_management_backend.mapper.ProductMapper;
 import com.swp391.eyewear_management_backend.repository.ProductRepo;
@@ -35,7 +38,62 @@ public class ProductServiceImpl implements ProductService {
                 .orElseThrow(() -> new RuntimeException("Not found"));
 
         // MapStruct tự động chọn trả về FrameResponse hay LensResponse
-        return productMapper.toDetailResponse(product);
+        ProductDetailResponse response = productMapper.toDetailResponse(product);
+        
+        // Populate related products based on type
+        if (response instanceof FrameResponse) {
+            FrameResponse frameResponse = (FrameResponse) response;
+            populateRelatedProducts(frameResponse, product.getProductID());
+        } else if (response instanceof LensResponse) {
+            LensResponse lensResponse = (LensResponse) response;
+            populateRelatedProducts(lensResponse, product.getProductID());
+        } else if (response instanceof ContactLensResponse) {
+            ContactLensResponse contactLensResponse = (ContactLensResponse) response;
+            populateRelatedProducts(contactLensResponse, product.getProductID());
+        }
+        
+        return response;
+    }
+    
+    private void populateRelatedProducts(FrameResponse response, Long currentProductId) {
+        // Lấy 4 gọng khác
+        List<Product> relatedFrames = productRepository.findByProductTypeNameExcludingId("Gọng kính", currentProductId)
+                .stream().limit(4).collect(Collectors.toList());
+        response.setRelatedFrames(relatedFrames.stream()
+                .map(productMapper::toProductResponse)
+                .collect(Collectors.toList()));
+        
+        // Lấy 4 tròng kính
+        List<Product> relatedLenses = productRepository.findByProductTypeNameExcludingId("Tròng kính", currentProductId)
+                .stream().limit(4).collect(Collectors.toList());
+        response.setRelatedLenses(relatedLenses.stream()
+                .map(productMapper::toProductResponse)
+                .collect(Collectors.toList()));
+    }
+    
+    private void populateRelatedProducts(LensResponse response, Long currentProductId) {
+        // Lấy 4 tròng kính khác
+        List<Product> relatedLenses = productRepository.findByProductTypeNameExcludingId("Tròng kính", currentProductId)
+                .stream().limit(4).collect(Collectors.toList());
+        response.setRelatedLenses(relatedLenses.stream()
+                .map(productMapper::toProductResponse)
+                .collect(Collectors.toList()));
+        
+        // Lấy 4 gọng kính
+        List<Product> relatedFrames = productRepository.findByProductTypeNameExcludingId("Gọng kính", currentProductId)
+                .stream().limit(4).collect(Collectors.toList());
+        response.setRelatedFrames(relatedFrames.stream()
+                .map(productMapper::toProductResponse)
+                .collect(Collectors.toList()));
+    }
+    
+    private void populateRelatedProducts(ContactLensResponse response, Long currentProductId) {
+        // Lấy 4 kính áp tròng khác
+        List<Product> relatedContactLenses = productRepository.findByProductTypeNameExcludingId("Kính áp tròng", currentProductId)
+                .stream().limit(4).collect(Collectors.toList());
+        response.setRelatedContactLenses(relatedContactLenses.stream()
+                .map(productMapper::toProductResponse)
+                .collect(Collectors.toList()));
     }
 
 }

@@ -7,7 +7,7 @@ import java.util.List;
 
 @Data
 
-public abstract class ProductDetailResponse {
+public class ProductDetailResponse {
     private String Product_Type;
     private Long id;
     private String name;

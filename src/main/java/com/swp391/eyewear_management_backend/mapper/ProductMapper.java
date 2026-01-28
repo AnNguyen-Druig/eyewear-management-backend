@@ -1,12 +1,13 @@
 package com.swp391.eyewear_management_backend.mapper;
 
-import com.swp391.eyewear_management_backend.dto.extend.ContactLensResponse;
-import com.swp391.eyewear_management_backend.dto.extend.FrameResponse;
-import com.swp391.eyewear_management_backend.dto.extend.LensResponse;
+import com.swp391.eyewear_management_backend.dto.response.extend.ContactLensResponse;
+import com.swp391.eyewear_management_backend.dto.response.extend.FrameResponse;
+import com.swp391.eyewear_management_backend.dto.response.extend.LensResponse;
 import com.swp391.eyewear_management_backend.dto.response.ProductDetailResponse;
 import com.swp391.eyewear_management_backend.dto.response.ProductResponse;
 import com.swp391.eyewear_management_backend.entity.Product;
 import com.swp391.eyewear_management_backend.entity.ProductImage;
+import org.mapstruct.InheritConfiguration;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.Named;
@@ -48,45 +49,44 @@ public interface ProductMapper {
         return null;
     }
 
-    // 1. Map cho Frame
     @Mapping(source = "productID", target = "id")
     @Mapping(source = "productName", target = "name")
     @Mapping(source = "SKU", target = "sku")
     @Mapping(source = "price", target = "price")
     @Mapping(source = "brand.brandName", target = "brandName")
     @Mapping(target = "imageUrls", expression = "java(mapImages(product.getImages()))")
+    @Mapping(source = "productType.typeName", target = "product_Type")
+    ProductDetailResponse baseProductMapping(Product product);
+
+    // 1. Map cho Frame
+    @InheritConfiguration(name = "baseProductMapping")
     // Map các trường riêng của Frame
     @Mapping(source = "frame.color", target = "color")
     @Mapping(source = "frame.frameMaterialName", target = "material")
     @Mapping(source = "frame.frameShapeName", target = "frameShape")
     @Mapping(source = "frame.description", target = "description")
     @Mapping(source = "productType.typeName", target = "product_Type")
+    @Mapping(target = "relatedFrames", ignore = true)
+    @Mapping(target = "relatedLenses", ignore = true)
     FrameResponse toFrameResponse(Product product);
 
     // 2. Map cho Lens
-    @Mapping(source = "productID", target = "id")
-    @Mapping(source = "productName", target = "name")
-    @Mapping(source = "SKU", target = "sku")
-    @Mapping(source = "price", target = "price")
-    @Mapping(source = "brand.brandName", target = "brandName")
-    @Mapping(target = "imageUrls", expression = "java(mapImages(product.getImages()))")
+    @InheritConfiguration(name = "baseProductMapping")
     // Map các trường riêng của Lens
     @Mapping(source = "lens.indexValue", target = "indexValue")
     @Mapping(source = "lens.description", target = "description")
     @Mapping(source = "productType.typeName", target = "product_Type")
+    @Mapping(target = "relatedLenses", ignore = true)
+    @Mapping(target = "relatedFrames", ignore = true)
     LensResponse toLensResponse(Product product);
 
     // 3. Map cho Contact Lens
-    @Mapping(source = "productID", target = "id")
-    @Mapping(source = "productName", target = "name")
-    @Mapping(source = "SKU", target = "sku")
-    @Mapping(source = "price", target = "price")
-    @Mapping(source = "brand.brandName", target = "brandName")
-    @Mapping(target = "imageUrls", expression = "java(mapImages(product.getImages()))")
+    @InheritConfiguration(name = "baseProductMapping")
     // Map các trường riêng
     @Mapping(source = "contactLens.waterContent", target = "waterContent")
     @Mapping(source = "contactLens.diameter", target = "diameter")
     @Mapping(source = "productType.typeName", target = "product_Type")
+    @Mapping(target = "relatedContactLenses", ignore = true)
     ContactLensResponse toContactLensResponse(Product product);
 
     // Helper map images (như cũ)
