@@ -3,6 +3,8 @@ package com.swp391.eyewear_management_backend.controller;
 import com.nimbusds.jose.JOSEException;
 import com.swp391.eyewear_management_backend.dto.request.AuthenticationRequest;
 import com.swp391.eyewear_management_backend.dto.request.IntrospectRequest;
+import com.swp391.eyewear_management_backend.dto.request.LogoutRequest;
+import com.swp391.eyewear_management_backend.dto.request.RefreshRequest;
 import com.swp391.eyewear_management_backend.dto.response.ApiResponse;
 import com.swp391.eyewear_management_backend.dto.response.AuthenticationResponse;
 import com.swp391.eyewear_management_backend.dto.response.IntrospectResponse;
@@ -37,6 +39,21 @@ public class AuthenticationController {
     ApiResponse<IntrospectResponse> logIn(@RequestBody IntrospectRequest request) throws ParseException, JOSEException {
         var result = authenticationService.introspect(request);
         return ApiResponse.<IntrospectResponse>builder()
+                .result(result)
+                .build();
+    }
+
+    @PostMapping("/logout")
+    ApiResponse<Void> logout(@RequestBody LogoutRequest request) throws ParseException, JOSEException {
+        authenticationService.logout(request);
+        return ApiResponse.<Void>builder()
+                .build();
+    }
+
+    @PostMapping("/refresh")
+    ApiResponse<AuthenticationResponse> refresh(@RequestBody RefreshRequest request) throws ParseException, JOSEException {
+        var result = authenticationService.refreshToken(request);
+        return ApiResponse.<AuthenticationResponse>builder()
                 .result(result)
                 .build();
     }
