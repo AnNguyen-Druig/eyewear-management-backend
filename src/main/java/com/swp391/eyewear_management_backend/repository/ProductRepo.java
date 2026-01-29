@@ -22,6 +22,8 @@ public interface ProductRepo extends JpaRepository<Product,Long> {
                                  @Param("maxPrice") Double maxPrice,
                                  @Param("category") String brand);
 
-
+    @Query("SELECT p FROM Product p WHERE p.productType.typeName = :typeName AND p.productID <> :excludeId ORDER BY p.productID DESC")
+    List<Product> findByProductTypeNameExcludingId(@Param("typeName") String typeName, 
+                                                     @Param("excludeId") Long excludeId);
 
 }
