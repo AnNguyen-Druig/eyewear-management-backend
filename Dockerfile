@@ -1,6 +1,6 @@
 # Sử dụng image Maven chính thức cho giai đoạn build
 # FROM  maven:3.9-eclipse-temurin-17-noble as build
-FROM  maven:3.9.11-eclipse-temurin-21-noble as build
+FROM  maven:4.0.0-rc-5-eclipse-temurin-25-alpine as build
 
 
 # Đặt thư mục làm việc trong container
@@ -18,7 +18,7 @@ RUN mvn clean package -Dmaven.test.skip=true
 
 # Giai đoạn thứ hai: tạo ra image nhỏ gọn hơn chỉ chứa JRE và ứng dụng đã build
 # FROM amazoncorretto:17.0.15-al2023
-FROM amazoncorretto:21.0.9-alpine3.22
+FROM amazoncorretto:25.0.2-alpine3.20
 
 # Đặt thư mục làm việc trong container
 WORKDIR /app
