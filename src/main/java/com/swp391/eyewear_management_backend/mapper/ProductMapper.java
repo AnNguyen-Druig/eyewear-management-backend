@@ -17,6 +17,8 @@ import java.util.stream.Collectors;
 
 @Mapper(componentModel = "spring")
 public interface ProductMapper {
+    String DEFAULT_IMAGE_URL = "default-placeholder.png";
+
     @Mapping(source = "productID", target = "id")
     @Mapping(source = "productName", target = "name")
     @Mapping(source = "brand.brandName", target = "brand")
@@ -27,14 +29,16 @@ public interface ProductMapper {
     @Named("getAvatarUrl")
     default String getAvatarUrl(List<ProductImage> images) {
         if (images == null || images.isEmpty()) {
-            return "default-placeholder.png";
+            return DEFAULT_IMAGE_URL;
         }
 
-        return images.stream()
-                .filter(ProductImage::getAvatar)
-                .findFirst()
-                .map(ProductImage::getImageUrl)
-                .orElse("default-placeholder.png");
+        // Tối ưu: dùng vòng lặp truyền thống thay vì stream cho performance tốt hơn
+        for (ProductImage image : images) {
+            if (Boolean.TRUE.equals(image.getAvatar())) {
+                return image.getImageUrl();
+            }
+        }
+        return DEFAULT_IMAGE_URL;
     }
 
     default ProductDetailResponse toDetailResponse(Product product) {
