@@ -19,10 +19,10 @@ build/
 .gradle/
 !gradle/wrapper/gradle-wrapper.jar
 
-# Spring Boot - Sensitive Config
-application.properties
-application-local.properties
-application-dev.properties
+## Spring Boot - Sensitive Config
+#application.properties
+#application-local.properties
+#application-dev.properties
 
 # Log files
 *.log
