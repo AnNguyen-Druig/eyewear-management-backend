@@ -18,8 +18,8 @@ public class OpenApiConfig {
 
         return new OpenAPI()
                 .info(new Info().title("Eyewear API").version("1.0"))
-                .addServersItem(new Server().url("https://localhost:8443").description("HTTPS Server"))
-                .addServersItem(new Server().url("http://localhost:8080").description("HTTP Server (Dev only)"))
+                .addServersItem(new Server().url("https://api-eyewear.purintech.id.vn").description("Production Server"))
+                .addServersItem(new Server().url("http://localhost:8080").description("Local Dev (HTTP)"))
                 .addSecurityItem(new SecurityRequirement().addList(schemeName))
                 .components(new Components().addSecuritySchemes(
                         schemeName,
