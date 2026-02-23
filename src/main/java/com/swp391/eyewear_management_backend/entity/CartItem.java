@@ -1,8 +1,5 @@
 package com.swp391.eyewear_management_backend.entity;
 
-import com.swp391.eyewear_management_backend.entity.Frame;
-import com.swp391.eyewear_management_backend.entity.Lens;
-import com.swp391.eyewear_management_backend.entity.Product;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -17,7 +14,7 @@ public class CartItem {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "Cart_Item_ID")
-    private Long cartItemId; // Đổi thành Long
+    private Long cartItemId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "Cart_ID", nullable = false)
@@ -35,19 +32,20 @@ public class CartItem {
     @JoinColumn(name = "Lens_ID")
     private Lens lens;
 
-    @Column(name = "Right_Eye_Sph", precision = 5, scale = 2)
+    // ĐÃ SỬA: Thay precision và scale bằng columnDefinition = "DECIMAL(5,2)"
+    @Column(name = "Right_Eye_Sph", columnDefinition = "DECIMAL(5,2)")
     private Double rightEyeSph;
 
-    @Column(name = "Right_Eye_Cyl", precision = 5, scale = 2)
+    @Column(name = "Right_Eye_Cyl", columnDefinition = "DECIMAL(5,2)")
     private Double rightEyeCyl;
 
     @Column(name = "Right_Eye_Axis")
     private Integer rightEyeAxis;
 
-    @Column(name = "Left_Eye_Sph", precision = 5, scale = 2)
+    @Column(name = "Left_Eye_Sph", columnDefinition = "DECIMAL(5,2)")
     private Double leftEyeSph;
 
-    @Column(name = "Left_Eye_Cyl", precision = 5, scale = 2)
+    @Column(name = "Left_Eye_Cyl", columnDefinition = "DECIMAL(5,2)")
     private Double leftEyeCyl;
 
     @Column(name = "Left_Eye_Axis")
