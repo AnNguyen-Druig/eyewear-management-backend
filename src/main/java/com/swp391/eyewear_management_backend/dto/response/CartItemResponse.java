@@ -17,17 +17,20 @@ public class CartItemResponse {
 
     private Long cartId;
 
-    private Long productId;
-    private String productName;
-    private Double productPrice;
+    private Long contactLensId;
+    private String contactLensName;
+    private Double contactLensPrice;
+    private String contactLensImg;
 
     private Long frameId;
     private String frameName;
     private Double framePrice;
+    private String frameImg;
 
     private Long lensId;
     private String lensName;
     private Double lensPrice;
+    private String lensImg;
 
     private Integer quantity;
 

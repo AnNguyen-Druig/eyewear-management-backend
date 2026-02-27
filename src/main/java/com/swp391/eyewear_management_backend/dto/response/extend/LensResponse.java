@@ -10,6 +10,7 @@ import java.util.List;
 @Data
 @EqualsAndHashCode(callSuper = false)
 public class LensResponse extends ProductDetailResponse {
+    private Long lensId;
     private String Description;
     private String indexValue; // Chiết suất
     private List<ProductResponse> relatedLenses;

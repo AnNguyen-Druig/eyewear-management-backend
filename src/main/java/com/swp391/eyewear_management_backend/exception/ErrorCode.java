@@ -45,7 +45,7 @@ public enum ErrorCode {
     ROLE_NOT_FOUND(1010, "Role not found", HttpStatus.NOT_FOUND),
 
     // Product, Frame, Lens
-    PRODUCT_NOT_FOUND(2001, "Product not found", HttpStatus.NOT_FOUND),
+    CONTACT_LENS_NOT_FOUND(2001, "Contact lens not found", HttpStatus.NOT_FOUND),
     FRAME_NOT_FOUND(2002, "Frame not found", HttpStatus.NOT_FOUND),
     LENS_NOT_FOUND(2003, "Lens not found", HttpStatus.NOT_FOUND),
     ;

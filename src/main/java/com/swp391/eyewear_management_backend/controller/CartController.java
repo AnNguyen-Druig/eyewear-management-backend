@@ -33,7 +33,7 @@ public class CartController {
      * API để lấy tất cả sản phẩm trong giỏ hàng
      * GET /api/cart/{userId}
      */
-    @GetMapping("/{userId}")
+    @GetMapping("/getdetail/{userId}")
     public ResponseEntity<List<CartItemResponse>> getCartItems(@PathVariable Long userId) {
         List<CartItemResponse> items = cartService.getCartItems(userId);
         return ResponseEntity.ok(items);
@@ -43,7 +43,7 @@ public class CartController {
      * API để xóa một sản phẩm khỏi giỏ hàng
      * DELETE /api/cart/item/{cartItemId}
      */
-    @DeleteMapping("/item/{cartItemId}")
+    @DeleteMapping("/deleteall/{cartItemId}")
     public ResponseEntity<Void> removeCartItem(@PathVariable Long cartItemId) {
         cartService.deleteCartItem(cartItemId);
         return ResponseEntity.noContent().build();
@@ -53,7 +53,7 @@ public class CartController {
      * API để xóa toàn bộ giỏ hàng
      * DELETE /api/cart/{userId}
      */
-    @DeleteMapping("/{userId}")
+    @DeleteMapping("/delete/{userId}")
     public ResponseEntity<Void> clearCart(@PathVariable Long userId) {
         cartService.clearCart(userId);
         return ResponseEntity.noContent().build();

@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -30,7 +31,7 @@ public class CartServiceImpl implements CartService {
     private UserRepo userRepository;
 
     @Autowired
-    private ProductRepo productRepository;
+    private ContactLensRepository contactLensRepository;
 
     @Autowired
     private FrameRepository frameRepository;
@@ -61,11 +62,11 @@ public class CartServiceImpl implements CartService {
                     return cartRepository.save(newCart);
                 });
 
-        // Lấy Product, Frame, Lens từ repository
-        Product product = null;
-        if (request.getProductId() != null) {
-            product = productRepository.findById(request.getProductId())
-                    .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_FOUND));
+        // Lấy Contact Lens, Frame, Lens từ repository
+        ContactLens contactLens = null;
+        if (request.getContactLensId() != null) {
+            contactLens = contactLensRepository.findById(request.getContactLensId())
+                    .orElseThrow(() -> new AppException(ErrorCode.CONTACT_LENS_NOT_FOUND));
         }
 
         Frame frame = null;
@@ -81,17 +82,38 @@ public class CartServiceImpl implements CartService {
         }
 
         // Khai báo final để dùng trong lambda
-        final Product finalProduct = product;
+        final ContactLens finalContactLens = contactLens;
         final Frame finalFrame = frame;
         final Lens finalLens = lens;
 
         // Kiểm tra xem sản phẩm này đã có trong giỏ chưa
+//        CartItem existingItem = cart.getCartItems().stream()
+//                .filter(item -> {
+//                    boolean sameContactLens = (finalContactLens != null && finalContactLens.getContactLensID().equals(item.getContactLens() != null ? item.getContactLens().getContactLensID() : null));
+//                    boolean sameFrame = (finalFrame != null && finalFrame.getFrameID().equals(item.getFrame() != null ? item.getFrame().getFrameID() : null));
+//                    boolean sameLens = (finalLens != null && finalLens.getLensID().equals(item.getLens() != null ? item.getLens().getLensID() : null));
+//                    return sameContactLens && sameFrame && sameLens;
+//                })
+//                .findFirst()
+//                .orElse(null);
+
+
+        Long targetContactLensId = (finalContactLens != null) ? finalContactLens.getContactLensID() : null;
+        Long targetFrameId = (finalFrame != null) ? finalFrame.getFrameID() : null;
+        Long targetLensId = (finalLens != null) ? finalLens.getLensID() : null;
+
+        // 2. Tìm kiếm trong giỏ hàng
         CartItem existingItem = cart.getCartItems().stream()
                 .filter(item -> {
-                    boolean sameProduct = (finalProduct != null && finalProduct.getProductID().equals(item.getProduct() != null ? item.getProduct().getProductID() : null));
-                    boolean sameFrame = (finalFrame != null && finalFrame.getFrameID().equals(item.getFrame() != null ? item.getFrame().getFrameID() : null));
-                    boolean sameLens = (finalLens != null && finalLens.getLensID().equals(item.getLens() != null ? item.getLens().getLensID() : null));
-                    return sameProduct && sameFrame && sameLens;
+                    // Lấy ID của sản phẩm đang có trong giỏ
+                    Long itemContactLensId = (item.getContactLens() != null) ? item.getContactLens().getContactLensID() : null;
+                    Long itemFrameId = (item.getFrame() != null) ? item.getFrame().getFrameID() : null;
+                    Long itemLensId = (item.getLens() != null) ? item.getLens().getLensID() : null;
+
+                    // 3. So sánh bằng Objects.equals()
+                    return Objects.equals(targetContactLensId, itemContactLensId) &&
+                            Objects.equals(targetFrameId, itemFrameId) &&
+                            Objects.equals(targetLensId, itemLensId);
                 })
                 .findFirst()
                 .orElse(null);
@@ -101,13 +123,13 @@ public class CartServiceImpl implements CartService {
         if (existingItem != null) {
             // Cập nhật quantity
             cartItem = existingItem;
-            cartItem.setQuantity(cartItem.getQuantity() + request.getQuantity());
+            cartItem.setQuantity(request.getQuantity());
             savedItem = cartItemRepository.save(cartItem);
         } else {
             // Tạo mới CartItem
             cartItem = new CartItem();
             cartItem.setCart(cart);
-            cartItem.setProduct(finalProduct);
+            cartItem.setContactLens(finalContactLens);
             cartItem.setFrame(finalFrame);
             cartItem.setLens(finalLens);
             cartItem.setQuantity(request.getQuantity());
@@ -119,25 +141,32 @@ public class CartServiceImpl implements CartService {
 
             savedItem = cartItemRepository.save(cartItem);
 
-            // Tạo hoặc cập nhật Prescription nếu có thông tin tròng kính
-            if (hasPrescription(request)) {
-                CartItemPrescription prescription = new CartItemPrescription();
-                prescription.setCartItem(savedItem);
-                prescription.setRightEyeSph(request.getRightEyeSph());
-                prescription.setRightEyeCyl(request.getRightEyeCyl());
-                prescription.setRightEyeAxis(request.getRightEyeAxis());
-                prescription.setRightEyeAdd(request.getRightEyeAdd());
-                prescription.setLeftEyeSph(request.getLeftEyeSph());
-                prescription.setLeftEyeCyl(request.getLeftEyeCyl());
-                prescription.setLeftEyeAxis(request.getLeftEyeAxis());
-                prescription.setLeftEyeAdd(request.getLeftEyeAdd());
-                prescription.setPd(request.getPd());
-                prescription.setPdRight(request.getPdRight());
-                prescription.setPdLeft(request.getPdLeft());
-                cartItemPrescriptionRepository.save(prescription);
-            }
         }
 
+        // Tạo hoặc cập nhật Prescription nếu có thông tin tròng kính
+        if (hasPrescription(request)) {
+            CartItemPrescription prescription = cartItemPrescriptionRepository
+                    .findByCartItem(cartItem)
+                    .orElse(null); // Nếu không tìm thấy thì gán bằng null
+
+            if (prescription == null) {
+                // Nếu null (chưa có) thì mới tạo mới
+                prescription = new CartItemPrescription();
+                prescription.setCartItem(cartItem);
+            }
+            prescription.setRightEyeSph(request.getRightEyeSph());
+            prescription.setRightEyeCyl(request.getRightEyeCyl());
+            prescription.setRightEyeAxis(request.getRightEyeAxis());
+            prescription.setRightEyeAdd(request.getRightEyeAdd());
+            prescription.setLeftEyeSph(request.getLeftEyeSph());
+            prescription.setLeftEyeCyl(request.getLeftEyeCyl());
+            prescription.setLeftEyeAxis(request.getLeftEyeAxis());
+            prescription.setLeftEyeAdd(request.getLeftEyeAdd());
+            prescription.setPd(request.getPd());
+            prescription.setPdRight(request.getPdRight());
+            prescription.setPdLeft(request.getPdLeft());
+            cartItemPrescriptionRepository.save(prescription);
+        }
 
 
         return cartItemMapper.toCartItemResponse(savedItem);

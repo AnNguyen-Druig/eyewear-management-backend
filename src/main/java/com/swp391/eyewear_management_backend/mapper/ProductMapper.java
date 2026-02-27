@@ -65,6 +65,7 @@ public interface ProductMapper {
     // 1. Map cho Frame
     @InheritConfiguration(name = "baseProductMapping")
     // Map các trường riêng của Frame
+    @Mapping(source = "frame.frameID", target = "frameId")
     @Mapping(source = "frame.color", target = "color")
     @Mapping(source = "frame.frameMaterialName", target = "material")
     @Mapping(source = "frame.frameShapeName", target = "frameShape")
@@ -77,6 +78,7 @@ public interface ProductMapper {
     // 2. Map cho Lens
     @InheritConfiguration(name = "baseProductMapping")
     // Map các trường riêng của Lens
+    @Mapping(source = "lens.lensID", target = "lensId")
     @Mapping(source = "lens.indexValue", target = "indexValue")
     @Mapping(source = "lens.description", target = "description")
     @Mapping(source = "productType.typeName", target = "product_Type")
@@ -87,6 +89,7 @@ public interface ProductMapper {
     // 3. Map cho Contact Lens
     @InheritConfiguration(name = "baseProductMapping")
     // Map các trường riêng
+    @Mapping(source = "contactLens.contactLensID", target = "contactLensId")
     @Mapping(source = "contactLens.waterContent", target = "waterContent")
     @Mapping(source = "contactLens.diameter", target = "diameter")
     @Mapping(source = "productType.typeName", target = "product_Type")

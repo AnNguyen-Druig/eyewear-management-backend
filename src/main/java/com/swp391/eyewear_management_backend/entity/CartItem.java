@@ -21,8 +21,8 @@ public class CartItem {
     private Cart cart;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "Product_ID")
-    private Product product;
+    @JoinColumn(name = "Contact_Lens_ID")
+    private ContactLens contactLens;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "Frame_ID")
