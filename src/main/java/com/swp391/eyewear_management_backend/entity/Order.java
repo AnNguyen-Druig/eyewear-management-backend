@@ -1,8 +1,10 @@
 package com.swp391.eyewear_management_backend.entity;
 
 import jakarta.persistence.*;
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 import org.hibernate.annotations.Formula;
 
 import java.math.BigDecimal;
@@ -11,8 +13,10 @@ import java.util.List;
 
 @Entity
 @Table(name = "[Order]")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
+@ToString(exclude = {"user", "orderDetails", "payments", "invoice", "orderProcessings", "orderPromotions", "prescriptionOrder"})
 public class Order {
 
     @Id

@@ -3,6 +3,8 @@ package com.swp391.eyewear_management_backend.service.impl;
 import com.swp391.eyewear_management_backend.dto.request.CartItemRequest;
 import com.swp391.eyewear_management_backend.dto.response.CartItemResponse;
 import com.swp391.eyewear_management_backend.entity.*;
+import com.swp391.eyewear_management_backend.exception.AppException;
+import com.swp391.eyewear_management_backend.exception.ErrorCode;
 import com.swp391.eyewear_management_backend.mapper.CartItemMapper;
 import com.swp391.eyewear_management_backend.repository.*;
 import com.swp391.eyewear_management_backend.service.CartService;
@@ -39,6 +41,9 @@ public class CartServiceImpl implements CartService {
     @Autowired
     private CartItemMapper cartItemMapper;
 
+    @Autowired
+    private CartItemPrescriptionRepository cartItemPrescriptionRepository;
+
     /**
      * Lưu hoặc cập nhật sản phẩm trong giỏ hàng
      */
@@ -46,7 +51,7 @@ public class CartServiceImpl implements CartService {
     public CartItemResponse addOrUpdateCartItem(CartItemRequest request) {
         // Lấy user
         User user = userRepository.findById(request.getUserId())
-                .orElseThrow(() -> new RuntimeException("User not found with id: " + request.getUserId()));
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
 
         // Lấy hoặc tạo mới giỏ hàng của user
         Cart cart = cartRepository.findByUserUserId(request.getUserId())
@@ -60,19 +65,19 @@ public class CartServiceImpl implements CartService {
         Product product = null;
         if (request.getProductId() != null) {
             product = productRepository.findById(request.getProductId())
-                    .orElseThrow(() -> new RuntimeException("Product not found with id: " + request.getProductId()));
+                    .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_FOUND));
         }
 
         Frame frame = null;
         if (request.getFrameId() != null) {
             frame = frameRepository.findById(request.getFrameId())
-                    .orElseThrow(() -> new RuntimeException("Frame not found with id: " + request.getFrameId()));
+                    .orElseThrow(() -> new AppException(ErrorCode.FRAME_NOT_FOUND));
         }
 
         Lens lens = null;
         if (request.getLensId() != null) {
             lens = lensRepository.findById(request.getLensId())
-                    .orElseThrow(() -> new RuntimeException("Lens not found with id: " + request.getLensId()));
+                    .orElseThrow(() -> new AppException(ErrorCode.LENS_NOT_FOUND));
         }
 
         // Khai báo final để dùng trong lambda
@@ -86,16 +91,18 @@ public class CartServiceImpl implements CartService {
                     boolean sameProduct = (finalProduct != null && finalProduct.getProductID().equals(item.getProduct() != null ? item.getProduct().getProductID() : null));
                     boolean sameFrame = (finalFrame != null && finalFrame.getFrameID().equals(item.getFrame() != null ? item.getFrame().getFrameID() : null));
                     boolean sameLens = (finalLens != null && finalLens.getLensID().equals(item.getLens() != null ? item.getLens().getLensID() : null));
-                    return sameProduct || sameFrame || sameLens;
+                    return sameProduct && sameFrame && sameLens;
                 })
                 .findFirst()
                 .orElse(null);
 
         CartItem cartItem;
+        CartItem savedItem;
         if (existingItem != null) {
             // Cập nhật quantity
             cartItem = existingItem;
             cartItem.setQuantity(cartItem.getQuantity() + request.getQuantity());
+            savedItem = cartItemRepository.save(cartItem);
         } else {
             // Tạo mới CartItem
             cartItem = new CartItem();
@@ -104,17 +111,34 @@ public class CartServiceImpl implements CartService {
             cartItem.setFrame(finalFrame);
             cartItem.setLens(finalLens);
             cartItem.setQuantity(request.getQuantity());
+
+            // Set giá
+            cartItem.setFramePrice(request.getFramePrice());
+            cartItem.setLensPrice(request.getLensPrice());
+            cartItem.setPrice(request.getPrice()); // kiểm tra lại
+
+            savedItem = cartItemRepository.save(cartItem);
+
+            // Tạo hoặc cập nhật Prescription nếu có thông tin tròng kính
+            if (hasPrescription(request)) {
+                CartItemPrescription prescription = new CartItemPrescription();
+                prescription.setCartItem(savedItem);
+                prescription.setRightEyeSph(request.getRightEyeSph());
+                prescription.setRightEyeCyl(request.getRightEyeCyl());
+                prescription.setRightEyeAxis(request.getRightEyeAxis());
+                prescription.setRightEyeAdd(request.getRightEyeAdd());
+                prescription.setLeftEyeSph(request.getLeftEyeSph());
+                prescription.setLeftEyeCyl(request.getLeftEyeCyl());
+                prescription.setLeftEyeAxis(request.getLeftEyeAxis());
+                prescription.setLeftEyeAdd(request.getLeftEyeAdd());
+                prescription.setPd(request.getPd());
+                prescription.setPdRight(request.getPdRight());
+                prescription.setPdLeft(request.getPdLeft());
+                cartItemPrescriptionRepository.save(prescription);
+            }
         }
 
-        // Set thông tin kính, tròng, cạnh
-        cartItem.setRightEyeSph(request.getRightEyeSph());
-        cartItem.setRightEyeCyl(request.getRightEyeCyl());
-        cartItem.setRightEyeAxis(request.getRightEyeAxis());
-        cartItem.setLeftEyeSph(request.getLeftEyeSph());
-        cartItem.setLeftEyeCyl(request.getLeftEyeCyl());
-        cartItem.setLeftEyeAxis(request.getLeftEyeAxis());
 
-        CartItem savedItem = cartItemRepository.save(cartItem);
 
         return cartItemMapper.toCartItemResponse(savedItem);
     }
@@ -153,5 +177,23 @@ public class CartServiceImpl implements CartService {
             cart.get().getCartItems().clear();
             cartRepository.save(cart.get());
         }
+
+    }
+
+    /**
+     * Kiểm tra có prescription fields nào không
+     */
+    private boolean hasPrescription (CartItemRequest request){
+        return request.getRightEyeSph() != null ||
+                request.getRightEyeCyl() != null ||
+                request.getRightEyeAxis() != null ||
+                request.getRightEyeAdd() != null ||
+                request.getLeftEyeSph() != null ||
+                request.getLeftEyeCyl() != null ||
+                request.getLeftEyeAxis() != null ||
+                request.getLeftEyeAdd() != null ||
+                request.getPd() != null ||
+                request.getPdRight() != null ||
+                request.getPdLeft() != null;
     }
 }

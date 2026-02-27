@@ -1,16 +1,20 @@
 package com.swp391.eyewear_management_backend.entity;
 
 import jakarta.persistence.*;
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "Product_Promotion")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
+@ToString(exclude = {"product", "promotion"})
 public class ProductPromotion {
 
     @Id

@@ -16,9 +16,6 @@ public class CartItemRequest {
     @NotNull(message = "USER_ID_REQUIRED")
     Long userId;
 
-    @NotNull(message = "CART_ID_REQUIRED")
-    Long cartId;
-
     Long productId;
     Long frameId;
     Long lensId;

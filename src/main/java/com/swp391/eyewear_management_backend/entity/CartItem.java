@@ -32,25 +32,15 @@ public class CartItem {
     @JoinColumn(name = "Lens_ID")
     private Lens lens;
 
-    // ĐÃ SỬA: Thay precision và scale bằng columnDefinition = "DECIMAL(5,2)"
-    @Column(name = "Right_Eye_Sph", columnDefinition = "DECIMAL(5,2)")
-    private Double rightEyeSph;
-
-    @Column(name = "Right_Eye_Cyl", columnDefinition = "DECIMAL(5,2)")
-    private Double rightEyeCyl;
-
-    @Column(name = "Right_Eye_Axis")
-    private Integer rightEyeAxis;
-
-    @Column(name = "Left_Eye_Sph", columnDefinition = "DECIMAL(5,2)")
-    private Double leftEyeSph;
-
-    @Column(name = "Left_Eye_Cyl", columnDefinition = "DECIMAL(5,2)")
-    private Double leftEyeCyl;
-
-    @Column(name = "Left_Eye_Axis")
-    private Integer leftEyeAxis;
-
     @Column(name = "Quantity", nullable = false)
     private Integer quantity;
+
+    @Column(name = "Frame_Price", columnDefinition = "DECIMAL(18,2)")
+    private Double framePrice;
+
+    @Column(name = "Lens_Price", columnDefinition = "DECIMAL(18,2)")
+    private Double lensPrice;
+
+    @Column(name = "Price", columnDefinition = "DECIMAL(18,2)", nullable = false)
+    private Double price;
 }

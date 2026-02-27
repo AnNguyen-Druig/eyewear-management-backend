@@ -29,15 +29,24 @@ public class CartItemResponse {
     private String lensName;
     private Double lensPrice;
 
+    private Integer quantity;
+
+
+    private Double price;
+
+    // Prescription fields
     private Double rightEyeSph;
     private Double rightEyeCyl;
     private Integer rightEyeAxis;
+    private Double rightEyeAdd;
 
     private Double leftEyeSph;
     private Double leftEyeCyl;
     private Integer leftEyeAxis;
+    private Double leftEyeAdd;
 
-    private Integer quantity;
-
-    private Double totalPrice;
+    // Pupillary Distance
+    private Double pd;
+    private Double pdRight;
+    private Double pdLeft;
 }
