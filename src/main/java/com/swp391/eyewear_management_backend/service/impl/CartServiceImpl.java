@@ -147,7 +147,7 @@ public class CartServiceImpl implements CartService {
         if (hasPrescription(request)) {
             CartItemPrescription prescription = cartItemPrescriptionRepository
                     .findByCartItem(cartItem)
-                    .orElse(null); // Nếu không tìm thấy thì gán bằng null
+                    .orElse(null); // Nếu không tìm thấy thì gán bằng null ,yeah sure
 
             if (prescription == null) {
                 // Nếu null (chưa có) thì mới tạo mới
