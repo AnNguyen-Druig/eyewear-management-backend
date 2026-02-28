@@ -30,7 +30,7 @@ import javax.crypto.spec.SecretKeySpec;
 public class SecurityConfig {
 
     private final String[] PUBLIC_ENDPOINTS = {"/users", "/auth/token", "/auth/introspect", "/auth/logout", "/auth/refresh"};
-    private final String[] WHITE_ENDPOINTS_LIST = {"/api/products/search"};
+    private final String[] WHITE_ENDPOINTS_LIST = {"/api/products/search", "/api/products/{id}"};
     private static final String[] SWAGGER_WHITELIST = {
             "/v3/api-docs/**",
             "/swagger-ui/**",

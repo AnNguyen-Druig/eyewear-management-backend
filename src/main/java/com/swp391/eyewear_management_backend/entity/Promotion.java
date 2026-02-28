@@ -1,6 +1,7 @@
 package com.swp391.eyewear_management_backend.entity;
 
 import jakarta.persistence.*;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -10,6 +11,7 @@ import java.util.List;
 
 @Entity
 @Table(name = "Promotion")
+@Builder
 @Data
 @NoArgsConstructor
 public class Promotion {
@@ -19,20 +21,23 @@ public class Promotion {
     @Column(name = "Promotion_ID")
     private Long promotionID;
 
-    @Column(name = "Promotion_Code", nullable = false, columnDefinition = "NVARCHAR(50)")
+    @Column(name = "Promotion_Code", nullable = false, unique = true, columnDefinition = "NVARCHAR(50)")
     private String promotionCode;
 
     @Column(name = "Promotion_Name", nullable = false, columnDefinition = "NVARCHAR(255)")
     private String promotionName;
 
-    @Column(name = "Promotion_Type", nullable = false, columnDefinition = "NVARCHAR(50)")
-    private String promotionType;
+    @Column(name = "Promotion_Scope", nullable = false, columnDefinition = "NVARCHAR(20)")
+    private String promotionScope; // ORDER / PRODUCT
+
+    @Column(name = "Discount_Type", nullable = false, columnDefinition = "NVARCHAR(20)")
+    private String discountType; // PERCENT / AMOUNT
 
     @Column(name = "Discount_Value", nullable = false, precision = 15, scale = 2)
     private BigDecimal discountValue;
 
-    @Column(name = "Discount_Type", nullable = false, columnDefinition = "NVARCHAR(50)")
-    private String discountType;
+    @Column(name = "Max_Discount_Value", precision = 15, scale = 2)
+    private BigDecimal maxDiscountValue; // nullable
 
     @Column(name = "Start_Date", nullable = false)
     private LocalDateTime startDate;
@@ -44,29 +49,17 @@ public class Promotion {
     private Integer usageLimit;
 
     @Column(name = "Used_Count", nullable = false)
-    private Integer usedCount;
+    private Integer usedCount = 0;
 
     @Column(name = "Is_Active", nullable = false)
-    private Boolean isActive;
+    private Boolean isActive = true;
+
+    @Column(name = "Description", columnDefinition = "NVARCHAR(500)")
+    private String description;
+
+    @OneToOne(mappedBy = "promotion", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    private PromotionOrderRule orderRule; // chỉ có nếu scope=ORDER
 
     @OneToMany(mappedBy = "promotion", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-    private List<OrderPromotion> orderPromotions;
-
-    @OneToMany(mappedBy = "promotion", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-    private List<ProductPromotion> productPromotions;
-
-    public Promotion(String promotionCode, String promotionName, String promotionType, BigDecimal discountValue,
-                     String discountType, LocalDateTime startDate, LocalDateTime endDate, Integer usageLimit,
-                     Integer usedCount, Boolean isActive) {
-        this.promotionCode = promotionCode;
-        this.promotionName = promotionName;
-        this.promotionType = promotionType;
-        this.discountValue = discountValue;
-        this.discountType = discountType;
-        this.startDate = startDate;
-        this.endDate = endDate;
-        this.usageLimit = usageLimit;
-        this.usedCount = usedCount;
-        this.isActive = isActive;
-    }
+    private List<PromotionProductTarget> productTargets; // chỉ có nếu scope=PRODUCT
 }

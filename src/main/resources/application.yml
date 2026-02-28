@@ -1,0 +1,26 @@
+spring:
+  application:
+    name: eyewear_management_backend
+
+datasource:
+  url: jdbc:sqlserver://database.purintech.id.vn:1433;databaseName=EyewearManagement;encrypt=true;trustServerCertificate=true
+  username: eyewear
+  password: eyewear
+
+jpa:
+  hibernate:
+    ddl-auto: update
+  show-sql: true
+  properties:
+    hibernate:
+      format_sql: true
+
+jwt:
+  signerKey: 56235e27daf8f8e68ce33febf5400cf93dbd5f6ec40a14531754168ea0d32486
+  valid-duration: 3600          # seconds
+  refreshable-duration: 36000   # seconds
+
+ghn:
+  base-url: https://online-gateway.ghn.vn/shiip/public-api
+  token: 2180ff60-11e5-11f1-bb99-4a6bb163b6a3      # b?n nên set bi?n môi tr??ng ${GHN_TOKEN}
+  shop-id: 4883785  # set bi?n môi tr??ng ${GHN_SHOP_ID}

@@ -13,6 +13,7 @@ import java.util.Set;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class UserRespone {
 
+    Long userId;
     String username;
     String email;
     String phone;

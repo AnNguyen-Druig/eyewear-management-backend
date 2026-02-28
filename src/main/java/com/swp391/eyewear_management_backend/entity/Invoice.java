@@ -1,6 +1,7 @@
 package com.swp391.eyewear_management_backend.entity;
 
 import jakarta.persistence.*;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -9,6 +10,7 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "Invoice")
+@Builder
 @Data
 @NoArgsConstructor
 public class Invoice {
@@ -33,10 +35,8 @@ public class Invoice {
     @Column(name = "Status", nullable = false, columnDefinition = "NVARCHAR(20)")
     private String status;
 
-    public Invoice(Order order, LocalDateTime issueDate, BigDecimal totalAmount, String status) {
-        this.order = order;
-        this.issueDate = issueDate;
-        this.totalAmount = totalAmount;
-        this.status = status;
+    @PrePersist
+    public void prePersist() {
+        if (issueDate == null) issueDate = LocalDateTime.now();
     }
 }
