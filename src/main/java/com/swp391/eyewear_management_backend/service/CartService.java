@@ -16,10 +16,10 @@ public interface CartService {
 
     /**
      * Lấy tất cả sản phẩm trong giỏ hàng của user
-     * @param userId ID của user
+     * ID của user
      * @return Danh sách CartItemResponse
      */
-    List<CartItemResponse> getCartItems(Long userId);
+    List<CartItemResponse> getCartItems();
 
     /**
      * Xóa một sản phẩm khỏi giỏ hàng
@@ -29,7 +29,7 @@ public interface CartService {
 
     /**
      * Xóa toàn bộ giỏ hàng
-     * @param userId ID của user
+     *
      */
-    void clearCart(Long userId);
+    void clearCart();
 }

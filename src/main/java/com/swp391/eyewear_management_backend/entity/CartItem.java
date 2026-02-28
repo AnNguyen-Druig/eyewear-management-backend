@@ -3,6 +3,8 @@ package com.swp391.eyewear_management_backend.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.math.BigDecimal;
+
 @Entity
 @Table(name = "Cart_Item")
 @Getter
@@ -36,11 +38,14 @@ public class CartItem {
     private Integer quantity;
 
     @Column(name = "Frame_Price", columnDefinition = "DECIMAL(18,2)")
-    private Double framePrice;
+    private BigDecimal framePrice;
 
     @Column(name = "Lens_Price", columnDefinition = "DECIMAL(18,2)")
-    private Double lensPrice;
+    private BigDecimal lensPrice;
+
+    @Column(name = "Contact_Lens_Price", columnDefinition = "DECIMAL(18,2)")
+    private BigDecimal contactLensPrice;
 
     @Column(name = "Price", columnDefinition = "DECIMAL(18,2)", nullable = false)
-    private Double price;
+    private BigDecimal price;
 }

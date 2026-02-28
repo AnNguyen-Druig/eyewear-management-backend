@@ -24,6 +24,9 @@ public interface ProductMapper {
     @Mapping(source = "brand.brandName", target = "brand")
     @Mapping(source = "productType.typeName", target = "product_Type")
     @Mapping(source = "images", target = "image_URL", qualifiedByName = "getAvatarUrl")
+    @Mapping(source = "product", target = "frameId", qualifiedByName = "getFrameId")
+    @Mapping(source = "product", target = "lensId", qualifiedByName = "getLensId")
+    @Mapping(source = "product", target = "contactLensId", qualifiedByName = "getContactLensId")
     ProductResponse toProductResponse(Product product);
 
     @Named("getAvatarUrl")
@@ -39,6 +42,33 @@ public interface ProductMapper {
             }
         }
         return DEFAULT_IMAGE_URL;
+    }
+
+    @Named("getFrameId")
+    default Long getFrameId(Product product) {
+        // ProductType ID = 1 là Frame
+        if (product.getProductType() != null && product.getProductType().getProductTypeID() == 1) {
+            return product.getFrame() != null ? product.getFrame().getFrameID() : null;
+        }
+        return null;
+    }
+
+    @Named("getLensId")
+    default Long getLensId(Product product) {
+        // ProductType ID = 2 là Lens
+        if (product.getProductType() != null && product.getProductType().getProductTypeID() == 2) {
+            return product.getLens() != null ? product.getLens().getLensID() : null;
+        }
+        return null;
+    }
+
+    @Named("getContactLensId")
+    default Long getContactLensId(Product product) {
+        // ProductType ID = 3 là Contact Lens
+        if (product.getProductType() != null && product.getProductType().getProductTypeID() == 3) {
+            return product.getContactLens() != null ? product.getContactLens().getContactLensID() : null;
+        }
+        return null;
     }
 
     default ProductDetailResponse toDetailResponse(Product product) {

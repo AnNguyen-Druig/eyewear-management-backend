@@ -9,9 +9,12 @@ import com.swp391.eyewear_management_backend.mapper.CartItemMapper;
 import com.swp391.eyewear_management_backend.repository.*;
 import com.swp391.eyewear_management_backend.service.CartService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -45,17 +48,27 @@ public class CartServiceImpl implements CartService {
     @Autowired
     private CartItemPrescriptionRepository cartItemPrescriptionRepository;
 
+    private User getCurrentUser() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated()) {
+            throw new AppException(ErrorCode.UNAUTHENTICATED);
+        }
+
+        String username = auth.getName();
+        return userRepository.findByUsername(username)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+    }
+
     /**
      * Lưu hoặc cập nhật sản phẩm trong giỏ hàng
      */
     @Override
     public CartItemResponse addOrUpdateCartItem(CartItemRequest request) {
         // Lấy user
-        User user = userRepository.findById(request.getUserId())
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+        User user = getCurrentUser();
 
         // Lấy hoặc tạo mới giỏ hàng của user
-        Cart cart = cartRepository.findByUserUserId(request.getUserId())
+        Cart cart = cartRepository.findByUserUserId(user.getUserId())
                 .orElseGet(() -> {
                     Cart newCart = new Cart();
                     newCart.setUser(user);
@@ -134,10 +147,29 @@ public class CartServiceImpl implements CartService {
             cartItem.setLens(finalLens);
             cartItem.setQuantity(request.getQuantity());
 
-            // Set giá
-            cartItem.setFramePrice(request.getFramePrice());
-            cartItem.setLensPrice(request.getLensPrice());
-            cartItem.setPrice(request.getPrice()); // kiểm tra lại
+            // Set giá từ database
+            if (finalFrame != null) {
+                cartItem.setFramePrice(finalFrame.getProduct().getPrice());
+            }
+            if (finalLens != null) {
+                cartItem.setLensPrice(finalLens.getProduct().getPrice());
+            }
+            if (finalContactLens != null) {
+                cartItem.setContactLensPrice(finalContactLens.getProduct().getPrice());
+            }
+            
+            // Tính tổng giá
+            BigDecimal totalPrice = BigDecimal.ZERO;
+            if (finalFrame != null) {
+                totalPrice = totalPrice.add(finalFrame.getProduct().getPrice());
+            }
+            if (finalLens != null) {
+                totalPrice = totalPrice.add(finalLens.getProduct().getPrice());
+            }
+            if (finalContactLens != null) {
+                totalPrice = totalPrice.add(finalContactLens.getProduct().getPrice());
+            }
+            cartItem.setPrice(totalPrice);
 
             savedItem = cartItemRepository.save(cartItem);
 
@@ -176,8 +208,9 @@ public class CartServiceImpl implements CartService {
      * Lấy tất cả sản phẩm trong giỏ hàng
      */
     @Override
-    public List<CartItemResponse> getCartItems(Long userId) {
-        Optional<Cart> cart = cartRepository.findByUserUserId(userId);
+    public List<CartItemResponse> getCartItems( ) {
+        User user = getCurrentUser();
+        Optional<Cart> cart = cartRepository.findByUserUserId(user.getUserId());
 
         if (cart.isEmpty()) {
             return List.of();
@@ -193,15 +226,30 @@ public class CartServiceImpl implements CartService {
      */
     @Override
     public void deleteCartItem(Long cartItemId) {
-        cartItemRepository.deleteById(cartItemId);
+        User user = getCurrentUser();
+        
+        // Lấy cartItem
+        CartItem cartItem = cartItemRepository.findById(cartItemId)
+                .orElseThrow(() -> new AppException(ErrorCode.UNAUTHENTICATED));
+
+        
+        // Kiểm tra cartItem có thuộc cart của user không
+        Cart cart = cartItem.getCart();
+        if (cart != null && cart.getUser().getUserId().equals(user.getUserId())) {
+            // Xóa nếu cartItem trùng user
+            cartItemRepository.deleteById(cartItemId);
+        } else {
+            throw new AppException(ErrorCode.UNAUTHENTICATED);
+        }
     }
 
     /**
      * Xóa toàn bộ giỏ hàng
      */
     @Override
-    public void clearCart(Long userId) {
-        Optional<Cart> cart = cartRepository.findByUserUserId(userId);
+    public void clearCart() {
+        User user = getCurrentUser();
+        Optional<Cart> cart = cartRepository.findByUserUserId(user.getUserId());
         if (cart.isPresent()) {
             cart.get().getCartItems().clear();
             cartRepository.save(cart.get());
