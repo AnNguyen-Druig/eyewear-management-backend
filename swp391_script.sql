@@ -28,10 +28,28 @@ CREATE TABLE [User] (
     Address NVARCHAR(255),
     Date_of_Birth DATE NOT NULL,
     ID_Number VARCHAR(20) UNIQUE,
+    Province_Code  INT           NULL,
+    Province_Name  NVARCHAR(100) NULL,
+    District_Code  INT           NULL,
+    District_Name  NVARCHAR(100) NULL,
+    Ward_Code      NVARCHAR(20)  NULL,  -- GHN ward_code là string
+    Ward_Name      NVARCHAR(100) NULL;
 
     CONSTRAINT FK_User_Role FOREIGN KEY (Role_ID) REFERENCES Role(Role_ID),
-    CONSTRAINT CK_User_Status CHECK (Status IN (0,1))
-    );
+    CONSTRAINT CK_User_Status CHECK (Status IN (0,1)),
+    CONSTRAINT CK_User_District_Pair CHECK (
+        (District_Code IS NULL AND District_Name IS NULL)
+    OR (District_Code IS NOT NULL AND District_Name IS NOT NULL)
+    ),
+    CONSTRAINT CK_User_District_Pair CHECK (
+        (District_Code IS NULL AND District_Name IS NULL)
+    OR (District_Code IS NOT NULL AND District_Name IS NOT NULL)
+    ),
+    CONSTRAINT CK_User_Ward_Pair CHECK (
+        (Ward_Code IS NULL AND Ward_Name IS NULL)
+    OR (Ward_Code IS NOT NULL AND Ward_Name IS NOT NULL)
+    )
+);
 GO
 
 CREATE TABLE Brand (

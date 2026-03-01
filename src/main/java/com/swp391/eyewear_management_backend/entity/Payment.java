@@ -1,18 +1,18 @@
 package com.swp391.eyewear_management_backend.entity;
 
 import jakarta.persistence.*;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "Payment")
+@Getter
+@Setter
+@NoArgsConstructor(access = AccessLevel.PROTECTED) // JPA cần
+@AllArgsConstructor(access = AccessLevel.PRIVATE)  // Builder cần
 @Builder
-@Data
-@NoArgsConstructor
 public class Payment {
 
     @Id
@@ -20,9 +20,7 @@ public class Payment {
     @Column(name = "Payment_ID")
     private Long paymentID;
 
-    @ManyToOne(fetch = FetchType.LAZY, cascade = {
-            CascadeType.PERSIST, CascadeType.MERGE, CascadeType.DETACH, CascadeType.REFRESH
-    })
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "Order_ID", nullable = false)
     private Order order;
 

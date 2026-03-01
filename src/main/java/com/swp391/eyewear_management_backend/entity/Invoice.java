@@ -10,7 +10,6 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "Invoice")
-@Builder
 @Data
 @NoArgsConstructor
 public class Invoice {

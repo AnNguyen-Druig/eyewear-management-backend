@@ -67,7 +67,28 @@ public class User {
     @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)
     private List<PrescriptionOrder> prescriptionOrders;
 
-    public User(String username, String password, String email, String phone, Role role, Boolean status, String name, String address, LocalDate dateOfBirth, String idNumber) {
+    // Province
+    @Column(name = "Province_Code")
+    private Integer provinceCode;
+
+    @Column(name = "Province_Name", columnDefinition = "NVARCHAR(100)")
+    private String provinceName;
+
+    // District
+    @Column(name = "District_Code")
+    private Integer districtCode;
+
+    @Column(name = "District_Name", columnDefinition = "NVARCHAR(100)")
+    private String districtName;
+
+    // Ward (GHN ward code là string)
+    @Column(name = "Ward_Code", columnDefinition = "NVARCHAR(20)")
+    private String wardCode;
+
+    @Column(name = "Ward_Name", columnDefinition = "NVARCHAR(100)")
+    private String wardName;
+
+    public User(String username, String password, String email, String phone, Role role, Boolean status, String name, String address, LocalDate dateOfBirth, String idNumber, Integer provinceCode, String provinceName, Integer districtCode, String districtName, String wardCode, String wardName) {
         this.username = username;
         this.password = password;
         this.email = email;
@@ -78,5 +99,11 @@ public class User {
         this.address = address;
         this.dateOfBirth = dateOfBirth;
         this.idNumber = idNumber;
+        this.provinceCode = provinceCode;
+        this.provinceName = provinceName;
+        this.districtCode = districtCode;
+        this.districtName = districtName;
+        this.wardCode = wardCode;
+        this.wardName = wardName;
     }
 }

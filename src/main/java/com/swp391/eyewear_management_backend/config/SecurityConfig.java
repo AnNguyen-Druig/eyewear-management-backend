@@ -29,12 +29,21 @@ import javax.crypto.spec.SecretKeySpec;
 @EnableMethodSecurity
 public class SecurityConfig {
 
-    private final String[] PUBLIC_ENDPOINTS = {"/users", "/auth/token", "/auth/introspect", "/auth/logout", "/auth/refresh"};
-    private final String[] WHITE_ENDPOINTS_LIST = {"/api/products/search", "/api/products/{id}"};
-    private static final String[] SWAGGER_WHITELIST = {
+    private static final String[] PUBLIC_GET_ENDPOINTS = {
+            "/ghn/**",
+            "/api/products/search",
+            "/api/products/**",   // lưu ý: /{id} nên dùng /** thay vì {id}
             "/v3/api-docs/**",
             "/swagger-ui/**",
             "/swagger-ui.html"
+    };
+
+    private static final String[] PUBLIC_POST_ENDPOINTS = {
+            "/users",
+            "/auth/token",
+            "/auth/introspect",
+            "/auth/logout",
+            "/auth/refresh"
     };
 
     @Autowired
@@ -45,12 +54,12 @@ public class SecurityConfig {
 
         httpSecurity.cors(Customizer.withDefaults());
 
-        httpSecurity.authorizeHttpRequests(request -> request
-                .requestMatchers(SWAGGER_WHITELIST).permitAll()
+        httpSecurity.authorizeHttpRequests(req -> req
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                .requestMatchers(HttpMethod.GET, WHITE_ENDPOINTS_LIST).permitAll()
-                .requestMatchers(HttpMethod.POST, PUBLIC_ENDPOINTS).permitAll()
-                .anyRequest().authenticated());
+                .requestMatchers(HttpMethod.GET, PUBLIC_GET_ENDPOINTS).permitAll()
+                .requestMatchers(HttpMethod.POST, PUBLIC_POST_ENDPOINTS).permitAll()
+                .anyRequest().authenticated()
+        );
 
         //Config cho oauth2 để verify token
         httpSecurity.oauth2ResourceServer(oauth2 ->

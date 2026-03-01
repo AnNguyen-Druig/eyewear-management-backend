@@ -13,7 +13,6 @@ import java.util.Set;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class UserRespone {
 
-    Long userId;
     String username;
     String email;
     String phone;
@@ -22,6 +21,12 @@ public class UserRespone {
     String address;
     String idNumber;
     RoleResponse role;
+    Integer provinceCode;
+    String provinceName;
+    Integer districtCode;
+    String districtName;
+    String wardCode;
+    String wardName;
 }
 
 
