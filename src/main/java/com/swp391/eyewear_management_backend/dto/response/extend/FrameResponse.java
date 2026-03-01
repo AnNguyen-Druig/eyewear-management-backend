@@ -10,6 +10,7 @@ import java.util.List;
 @Data
 @EqualsAndHashCode(callSuper = false)
 public class FrameResponse extends ProductDetailResponse {
+    private Long frameId;
     private String Description;
     private String color;
     private String material;

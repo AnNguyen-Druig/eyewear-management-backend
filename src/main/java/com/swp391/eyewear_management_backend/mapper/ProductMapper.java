@@ -17,24 +17,58 @@ import java.util.stream.Collectors;
 
 @Mapper(componentModel = "spring")
 public interface ProductMapper {
+    String DEFAULT_IMAGE_URL = "default-placeholder.png";
+
     @Mapping(source = "productID", target = "id")
     @Mapping(source = "productName", target = "name")
     @Mapping(source = "brand.brandName", target = "brand")
     @Mapping(source = "productType.typeName", target = "product_Type")
     @Mapping(source = "images", target = "image_URL", qualifiedByName = "getAvatarUrl")
+    @Mapping(source = "product", target = "frameId", qualifiedByName = "getFrameId")
+    @Mapping(source = "product", target = "lensId", qualifiedByName = "getLensId")
+    @Mapping(source = "product", target = "contactLensId", qualifiedByName = "getContactLensId")
     ProductResponse toProductResponse(Product product);
 
     @Named("getAvatarUrl")
     default String getAvatarUrl(List<ProductImage> images) {
         if (images == null || images.isEmpty()) {
-            return "default-placeholder.png";
+            return DEFAULT_IMAGE_URL;
         }
 
-        return images.stream()
-                .filter(ProductImage::getAvatar)
-                .findFirst()
-                .map(ProductImage::getImageUrl)
-                .orElse("default-placeholder.png");
+        // Tối ưu: dùng vòng lặp truyền thống thay vì stream cho performance tốt hơn
+        for (ProductImage image : images) {
+            if (Boolean.TRUE.equals(image.getAvatar())) {
+                return image.getImageUrl();
+            }
+        }
+        return DEFAULT_IMAGE_URL;
+    }
+
+    @Named("getFrameId")
+    default Long getFrameId(Product product) {
+        // ProductType ID = 1 là Frame
+        if (product.getProductType() != null && product.getProductType().getProductTypeID() == 1) {
+            return product.getFrame() != null ? product.getFrame().getFrameID() : null;
+        }
+        return null;
+    }
+
+    @Named("getLensId")
+    default Long getLensId(Product product) {
+        // ProductType ID = 2 là Lens
+        if (product.getProductType() != null && product.getProductType().getProductTypeID() == 2) {
+            return product.getLens() != null ? product.getLens().getLensID() : null;
+        }
+        return null;
+    }
+
+    @Named("getContactLensId")
+    default Long getContactLensId(Product product) {
+        // ProductType ID = 3 là Contact Lens
+        if (product.getProductType() != null && product.getProductType().getProductTypeID() == 3) {
+            return product.getContactLens() != null ? product.getContactLens().getContactLensID() : null;
+        }
+        return null;
     }
 
     default ProductDetailResponse toDetailResponse(Product product) {
@@ -61,6 +95,7 @@ public interface ProductMapper {
     // 1. Map cho Frame
     @InheritConfiguration(name = "baseProductMapping")
     // Map các trường riêng của Frame
+    @Mapping(source = "frame.frameID", target = "frameId")
     @Mapping(source = "frame.color", target = "color")
     @Mapping(source = "frame.frameMaterialName", target = "material")
     @Mapping(source = "frame.frameShapeName", target = "frameShape")
@@ -73,6 +108,7 @@ public interface ProductMapper {
     // 2. Map cho Lens
     @InheritConfiguration(name = "baseProductMapping")
     // Map các trường riêng của Lens
+    @Mapping(source = "lens.lensID", target = "lensId")
     @Mapping(source = "lens.indexValue", target = "indexValue")
     @Mapping(source = "lens.description", target = "description")
     @Mapping(source = "productType.typeName", target = "product_Type")
@@ -83,6 +119,7 @@ public interface ProductMapper {
     // 3. Map cho Contact Lens
     @InheritConfiguration(name = "baseProductMapping")
     // Map các trường riêng
+    @Mapping(source = "contactLens.contactLensID", target = "contactLensId")
     @Mapping(source = "contactLens.waterContent", target = "waterContent")
     @Mapping(source = "contactLens.diameter", target = "diameter")
     @Mapping(source = "productType.typeName", target = "product_Type")

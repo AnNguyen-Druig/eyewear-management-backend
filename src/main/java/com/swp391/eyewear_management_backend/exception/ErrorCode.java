@@ -43,6 +43,11 @@ public enum ErrorCode {
     IDNUMBER_EXISTED(1011, "Id number already exists", HttpStatus.BAD_REQUEST),
 
     ROLE_NOT_FOUND(1010, "Role not found", HttpStatus.NOT_FOUND),
+
+    // Product, Frame, Lens
+    CONTACT_LENS_NOT_FOUND(2001, "Contact lens not found", HttpStatus.NOT_FOUND),
+    FRAME_NOT_FOUND(2002, "Frame not found", HttpStatus.NOT_FOUND),
+    LENS_NOT_FOUND(2003, "Lens not found", HttpStatus.NOT_FOUND),
     ;
 
     private final int code;

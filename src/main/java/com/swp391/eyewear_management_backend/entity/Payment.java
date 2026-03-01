@@ -13,6 +13,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor(access = AccessLevel.PROTECTED) // JPA cần
 @AllArgsConstructor(access = AccessLevel.PRIVATE)  // Builder cần
 @Builder
+@ToString(exclude = "order")
 public class Payment {
 
     @Id

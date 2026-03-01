@@ -43,12 +43,15 @@ public class ProductServiceImpl implements ProductService {
         // Populate related products based on type
         if (response instanceof FrameResponse) {
             FrameResponse frameResponse = (FrameResponse) response;
+            frameResponse.setFrameId(product.getFrame().getFrameID());
             populateRelatedProducts(frameResponse, product.getProductID());
         } else if (response instanceof LensResponse) {
             LensResponse lensResponse = (LensResponse) response;
+            lensResponse.setLensId(product.getLens().getLensID());
             populateRelatedProducts(lensResponse, product.getProductID());
         } else if (response instanceof ContactLensResponse) {
             ContactLensResponse contactLensResponse = (ContactLensResponse) response;
+            contactLensResponse.setContactLensId(product.getContactLens().getContactLensID());
             populateRelatedProducts(contactLensResponse, product.getProductID());
         }
         

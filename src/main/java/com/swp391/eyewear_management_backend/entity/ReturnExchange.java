@@ -1,16 +1,20 @@
 package com.swp391.eyewear_management_backend.entity;
 
 import jakarta.persistence.*;
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "Return_Exchange")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
+@ToString(exclude = {"orderDetail", "user"})
 public class ReturnExchange {
 
     @Id

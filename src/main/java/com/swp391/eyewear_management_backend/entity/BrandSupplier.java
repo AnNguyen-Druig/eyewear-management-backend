@@ -1,13 +1,17 @@
 package com.swp391.eyewear_management_backend.entity;
 
 import jakarta.persistence.*;
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 
 @Entity
 @Table(name = "Brand_Supplier")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
+@ToString(exclude = {"brand", "supplier"})
 public class BrandSupplier {
 
     @Id

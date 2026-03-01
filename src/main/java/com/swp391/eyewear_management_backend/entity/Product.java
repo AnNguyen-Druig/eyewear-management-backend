@@ -1,16 +1,20 @@
 package com.swp391.eyewear_management_backend.entity;
 
 import jakarta.persistence.*;
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 
 import java.math.BigDecimal;
 import java.util.List;
 
 @Entity
 @Table(name = "Product")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
+@ToString(exclude = {"frame", "lens", "contactLens", "images", "inventories", "orderDetails", "promotions"})
 public class Product {
 
     @Id
@@ -58,13 +62,13 @@ public class Product {
     @OneToMany(mappedBy = "product", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     private List<OrderDetail> orderDetails;
 
-    @OneToOne(mappedBy = "product", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    @OneToOne(mappedBy = "product", fetch = FetchType.LAZY)
     private Frame frame;
 
-    @OneToOne(mappedBy = "product", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    @OneToOne(mappedBy = "product", fetch = FetchType.LAZY)
     private Lens lens;
 
-    @OneToOne(mappedBy = "product", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    @OneToOne(mappedBy = "product", fetch = FetchType.LAZY)
     private ContactLens contactLens;
 
     public Product(String productName, ProductType productType, Brand brand, BigDecimal price,

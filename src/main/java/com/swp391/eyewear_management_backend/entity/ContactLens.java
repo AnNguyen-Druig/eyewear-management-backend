@@ -1,15 +1,19 @@
 package com.swp391.eyewear_management_backend.entity;
 
 import jakarta.persistence.*;
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 
 import java.math.BigDecimal;
 
 @Entity
 @Table(name = "Contact_Lens")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
+@ToString(exclude = "product")
 public class ContactLens {
 
     @Id

@@ -10,6 +10,7 @@ import java.util.List;
 @Data
 @EqualsAndHashCode(callSuper = false)
 public class ContactLensResponse extends ProductDetailResponse {
+    private Long contactLensId;
     private String Description;
     private String waterContent;
     private String diameter;
