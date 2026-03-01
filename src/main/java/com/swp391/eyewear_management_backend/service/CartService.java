@@ -14,6 +14,10 @@ public interface CartService {
      */
     CartItemResponse addOrUpdateCartItem(CartItemRequest request);
 
+
+
+
+
     /**
      * Lấy tất cả sản phẩm trong giỏ hàng của user
      * ID của user
@@ -26,6 +30,13 @@ public interface CartService {
      * @param cartItemId ID của cart item cần xóa
      */
     void deleteCartItem(Long cartItemId);
+
+    /**
+     * Cập nhật các thuộc tính của sản phẩm trong giỏ hàng
+     * @param request Thông tin cập nhật (cartItemId, frameId, lensId, contactLensId, quantity, prescription)
+     * @return CartItemResponse
+     */
+    CartItemResponse updateCartItem(CartItemRequest request);
 
     /**
      * Xóa toàn bộ giỏ hàng

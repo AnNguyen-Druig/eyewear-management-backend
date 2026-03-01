@@ -29,7 +29,7 @@ public class CartController {
         return ResponseEntity.ok(response);
     }
 
-    /**
+     /**
      * API để lấy tất cả sản phẩm trong giỏ hàng
      * GET /api/cart/{userId}
      */
@@ -57,5 +57,17 @@ public class CartController {
     public ResponseEntity<Void> clearCart( ) {
         cartService.clearCart();
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * API để cập nhật thông tin sản phẩm trong giỏ hàng (ví dụ: số lượng)
+     * PUT /api/cart/update/{cartItemId}
+     */
+    @PutMapping("/update")
+    public ResponseEntity<CartItemResponse> updateCartItem(
+            @Valid @RequestBody CartItemRequest request) {
+        // Gọi service xử lý logic update
+        CartItemResponse response = cartService.updateCartItem(request);
+        return ResponseEntity.ok(response);
     }
 }
