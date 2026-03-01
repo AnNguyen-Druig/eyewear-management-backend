@@ -1,6 +1,7 @@
 package com.swp391.eyewear_management_backend.controller;
 
 import com.swp391.eyewear_management_backend.dto.request.CartItemRequest;
+import com.swp391.eyewear_management_backend.dto.request.CartItemQuantityUpdateRequest;
 import com.swp391.eyewear_management_backend.dto.response.CartItemResponse;
 import com.swp391.eyewear_management_backend.service.CartService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -60,13 +61,12 @@ public class CartController {
     }
 
     /**
-     * API để cập nhật thông tin sản phẩm trong giỏ hàng (ví dụ: số lượng)
-     * PUT /api/cart/update/{cartItemId}
+     * API để cập nhật số lượng sản phẩm trong giỏ hàng
+     * PUT /api/cart/update
      */
     @PutMapping("/update")
     public ResponseEntity<CartItemResponse> updateCartItem(
-            @Valid @RequestBody CartItemRequest request) {
-        // Gọi service xử lý logic update
+            @Valid @RequestBody CartItemQuantityUpdateRequest request) {
         CartItemResponse response = cartService.updateCartItem(request);
         return ResponseEntity.ok(response);
     }

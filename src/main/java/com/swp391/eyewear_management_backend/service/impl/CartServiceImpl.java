@@ -1,6 +1,7 @@
 package com.swp391.eyewear_management_backend.service.impl;
 
 import com.swp391.eyewear_management_backend.dto.request.CartItemRequest;
+import com.swp391.eyewear_management_backend.dto.request.CartItemQuantityUpdateRequest;
 import com.swp391.eyewear_management_backend.dto.response.CartItemResponse;
 import com.swp391.eyewear_management_backend.entity.*;
 import com.swp391.eyewear_management_backend.exception.AppException;
@@ -250,72 +251,20 @@ public class CartServiceImpl implements CartService {
     }
 
     @Override
-    public CartItemResponse updateCartItem(CartItemRequest request) {
-        // Lấy user
+    public CartItemResponse updateCartItem(CartItemQuantityUpdateRequest request) {
         User user = getCurrentUser();
 
-        // Lấy hoặc tạo mới giỏ hàng của user
-        Cart cart = cartRepository.findByUserUserId(user.getUserId())
-                .orElseGet(() -> {
-                    Cart newCart = new Cart();
-                    newCart.setUser(user);
-                    return cartRepository.save(newCart);
-                });
+        CartItem cartItem = cartItemRepository.findById(request.getCartItemId())
+            .orElseThrow(() -> new AppException(ErrorCode.CART_ITEM_NOT_FOUND));
 
-        // Lấy Contact Lens, Frame, Lens từ repository
-        ContactLens contactLens = null;
-        if (request.getContactLensId() != null) {
-            contactLens = contactLensRepository.findById(request.getContactLensId())
-                    .orElseThrow(() -> new AppException(ErrorCode.CONTACT_LENS_NOT_FOUND));
+        Cart cart = cartItem.getCart();
+        if (cart == null || cart.getUser() == null || !cart.getUser().getUserId().equals(user.getUserId())) {
+            throw new AppException(ErrorCode.UNAUTHENTICATED);
         }
 
-        Frame frame = null;
-        if (request.getFrameId() != null) {
-            frame = frameRepository.findById(request.getFrameId())
-                    .orElseThrow(() -> new AppException(ErrorCode.FRAME_NOT_FOUND));
-        }
-
-        Lens lens = null;
-        if (request.getLensId() != null) {
-            lens = lensRepository.findById(request.getLensId())
-                    .orElseThrow(() -> new AppException(ErrorCode.LENS_NOT_FOUND));
-        }
-
-        // Khai báo final để dùng trong lambda
-        final ContactLens finalContactLens = contactLens;
-        final Frame finalFrame = frame;
-        final Lens finalLens = lens;
-
-        Long targetContactLensId = (finalContactLens != null) ? finalContactLens.getContactLensID() : null;
-        Long targetFrameId = (finalFrame != null) ? finalFrame.getFrameID() : null;
-        Long targetLensId = (finalLens != null) ? finalLens.getLensID() : null;
-
-        // 2. Tìm kiếm trong giỏ hàng
-        CartItem existingItem = cart.getCartItems().stream()
-                .filter(item -> {
-                    // Lấy ID của sản phẩm đang có trong giỏ
-                    Long itemContactLensId = (item.getContactLens() != null) ? item.getContactLens().getContactLensID() : null;
-                    Long itemFrameId = (item.getFrame() != null) ? item.getFrame().getFrameID() : null;
-                    Long itemLensId = (item.getLens() != null) ? item.getLens().getLensID() : null;
-
-                    // 3. So sánh ID sản phẩm
-                    return Objects.equals(targetContactLensId, itemContactLensId) &&
-                            Objects.equals(targetFrameId, itemFrameId) &&
-                            Objects.equals(targetLensId, itemLensId);
-                })
-                .findFirst()
-                .orElse(null);
-
-        CartItem cartItem;
-        CartItem savedItem;
-        if (existingItem != null) {
-            // Cập nhật quantity
-            cartItem = existingItem;
-            cartItem.setQuantity(request.getQuantity());
-            savedItem = cartItemRepository.save(cartItem);
-            return cartItemMapper.toCartItemResponse(savedItem);
-        }
-        return null;
+        cartItem.setQuantity(request.getQuantity());
+        CartItem savedItem = cartItemRepository.save(cartItem);
+        return cartItemMapper.toCartItemResponse(savedItem);
     }
 
     /**

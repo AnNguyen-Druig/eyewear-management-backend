@@ -1,6 +1,7 @@
 package com.swp391.eyewear_management_backend.service;
 
 import com.swp391.eyewear_management_backend.dto.request.CartItemRequest;
+import com.swp391.eyewear_management_backend.dto.request.CartItemQuantityUpdateRequest;
 import com.swp391.eyewear_management_backend.dto.response.CartItemResponse;
 
 import java.util.List;
@@ -32,11 +33,11 @@ public interface CartService {
     void deleteCartItem(Long cartItemId);
 
     /**
-     * Cập nhật các thuộc tính của sản phẩm trong giỏ hàng
-     * @param request Thông tin cập nhật (cartItemId, frameId, lensId, contactLensId, quantity, prescription)
+     * Cập nhật số lượng sản phẩm trong giỏ hàng
+     * @param request Thông tin cập nhật (cartItemId, quantity)
      * @return CartItemResponse
      */
-    CartItemResponse updateCartItem(CartItemRequest request);
+    CartItemResponse updateCartItem(CartItemQuantityUpdateRequest request);
 
     /**
      * Xóa toàn bộ giỏ hàng

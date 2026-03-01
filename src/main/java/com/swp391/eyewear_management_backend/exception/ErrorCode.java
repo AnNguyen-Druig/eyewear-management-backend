@@ -48,6 +48,8 @@ public enum ErrorCode {
     CONTACT_LENS_NOT_FOUND(2001, "Contact lens not found", HttpStatus.NOT_FOUND),
     FRAME_NOT_FOUND(2002, "Frame not found", HttpStatus.NOT_FOUND),
     LENS_NOT_FOUND(2003, "Lens not found", HttpStatus.NOT_FOUND),
+    CART_ITEM_NOT_FOUND(2004, "Cart item not found", HttpStatus.NOT_FOUND),
+    CART_ITEM_ID_REQUIRED(2005, "Cart item id is required", HttpStatus.BAD_REQUEST),
     ;
 
     private final int code;
