@@ -35,10 +35,10 @@ public class PromotionCalculatorServiceImpl implements PromotionCalculatorServic
 
         List<Long> promoIds = promos.stream().map(Promotion::getPromotionID).toList();
 
-        Map<Long, PromotionOrderRule> orderRuleMap = orderRuleRepo.findByPromotion_PromotionIdIn(promoIds)
+        Map<Long, PromotionOrderRule> orderRuleMap = orderRuleRepo.findByPromotion_PromotionIDIn(promoIds)
                 .stream().collect(Collectors.toMap(r -> r.getPromotion().getPromotionID(), r -> r));
 
-        Map<Long, List<PromotionProductTarget>> targetMap = targetRepo.findByPromotion_PromotionIdIn(promoIds)
+        Map<Long, List<PromotionProductTarget>> targetMap = targetRepo.findByPromotion_PromotionIDIn(promoIds)
                 .stream().collect(Collectors.groupingBy(t -> t.getPromotion().getPromotionID()));
 
         // Build component list (để product-scope tính đúng cho prescription: framePrice/lensPrice)

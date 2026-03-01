@@ -6,5 +6,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 
 public interface PromotionOrderRuleRepo extends JpaRepository<PromotionOrderRule, Long> {
-    List<PromotionOrderRule> findByPromotion_PromotionIdIn(List<Long> promotionIds);
+    List<PromotionOrderRule> findByPromotion_PromotionIDIn(List<Long> promotionIds);
 }
