@@ -48,4 +48,7 @@ public class CartItem {
 
     @Column(name = "Price", columnDefinition = "DECIMAL(18,2)", nullable = false)
     private BigDecimal price;
+
+    @OneToOne(mappedBy = "cartItem", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    private CartItemPrescription prescription;
 }

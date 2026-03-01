@@ -1,7 +1,9 @@
 package com.swp391.eyewear_management_backend.mapper;
 
 import com.swp391.eyewear_management_backend.dto.response.CartItemResponse;
+import com.swp391.eyewear_management_backend.dto.response.PrescriptionResponse;
 import com.swp391.eyewear_management_backend.entity.CartItem;
+import com.swp391.eyewear_management_backend.entity.CartItemPrescription;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.Named;
@@ -25,6 +27,7 @@ public interface CartItemMapper {
     @Mapping(source = "cartItem.lens", target = "lensImg", qualifiedByName = "getLensImg")
     @Mapping(source = "cartItem.quantity", target = "quantity")
     @Mapping(source = "cartItem.price", target = "price")
+    @Mapping(source = "cartItem", target = "prescription", qualifiedByName = "mapPrescription")
     CartItemResponse toCartItemResponse(CartItem cartItem);
 
     @Named("getContactLensName")
@@ -102,4 +105,25 @@ public interface CartItemMapper {
                 .findFirst()
                 .orElse(null);
     }
-}
+
+    @Named("mapPrescription")
+    default PrescriptionResponse mapPrescription(CartItem cartItem) {
+        if (cartItem == null || cartItem.getPrescription() == null) {
+            return null;
+        }
+        
+        CartItemPrescription prescription = cartItem.getPrescription();
+        
+        return PrescriptionResponse.builder()
+                .leftSPH(prescription.getLeftEyeSph() != null ? prescription.getLeftEyeSph().toString() : "0")
+                .leftCYL(prescription.getLeftEyeCyl() != null ? prescription.getLeftEyeCyl().toString() : "0")
+                .leftAXIS(prescription.getLeftEyeAxis() != null ? prescription.getLeftEyeAxis().toString() : "0")
+                .leftADD(prescription.getLeftEyeAdd() != null ? prescription.getLeftEyeAdd().toString() : "0")
+                .leftPD(prescription.getPdLeft() != null ? prescription.getPdLeft().toString() : "0")
+                .rightSPH(prescription.getRightEyeSph() != null ? prescription.getRightEyeSph().toString() : "0")
+                .rightCYL(prescription.getRightEyeCyl() != null ? prescription.getRightEyeCyl().toString() : "0")
+                .rightAXIS(prescription.getRightEyeAxis() != null ? prescription.getRightEyeAxis().toString() : "0")
+                .rightADD(prescription.getRightEyeAdd() != null ? prescription.getRightEyeAdd().toString() : "0")
+                .rightPD(prescription.getPdRight() != null ? prescription.getPdRight().toString() : "0")
+                .build();
+    }}
