@@ -37,19 +37,6 @@ public class CartItemResponse {
 
     private Double price;
 
-    // Prescription fields
-    private Double rightEyeSph;
-    private Double rightEyeCyl;
-    private Integer rightEyeAxis;
-    private Double rightEyeAdd;
-
-    private Double leftEyeSph;
-    private Double leftEyeCyl;
-    private Integer leftEyeAxis;
-    private Double leftEyeAdd;
-
-    // Pupillary Distance
-    private Double pd;
-    private Double pdRight;
-    private Double pdLeft;
+    // Prescription information
+    private PrescriptionResponse prescription;
 }

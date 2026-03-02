@@ -42,3 +42,8 @@ ghn:
       frame: 300               # gram
       prescription: 450        # gram (frame + lens)
       def: 250             # gram fallback
+
+  cloudinary:
+    cloud-name=dbgkfgkrl
+    api-key=349146117748721
+    api-secret=dW4_Qy27QgUd63_ihqd1iI1173M

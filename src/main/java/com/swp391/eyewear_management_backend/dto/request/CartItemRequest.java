@@ -13,8 +13,6 @@ import lombok.experimental.FieldDefaults;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class CartItemRequest {
 
-
-
     Long contactLensId;
     Long frameId;
     Long lensId;
