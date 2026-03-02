@@ -37,7 +37,13 @@ public class ImageUploadService implements com.swp391.eyewear_management_backend
 
         // 2. Gọi API của Cloudinary để xóa
         // Hàm destroy() sẽ trả về một Map chứa kết quả, nếu thành công sẽ có key "result" mang giá trị "ok"
-        return cloudinary.uploader().destroy(publicId, ObjectUtils.emptyMap());
+
+        // Thay vì xóa bình thường như thế này:
+// cloudinary.uploader().destroy(publicId, ObjectUtils.emptyMap());
+
+// Hãy dùng cách này để ép xóa toàn bộ cache:
+
+        return cloudinary.uploader().destroy(publicId, ObjectUtils.asMap("invalidate", true));
     }
 
     // HÀM PHỤ: Cắt chuỗi để lấy public_id
