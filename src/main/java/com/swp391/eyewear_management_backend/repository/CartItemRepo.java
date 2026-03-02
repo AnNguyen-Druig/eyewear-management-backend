@@ -8,7 +8,7 @@ import org.springframework.data.rest.core.annotation.RepositoryRestResource;
 import java.util.List;
 
 @RepositoryRestResource(path = "cart-items")
-public interface CartItemRepository extends JpaRepository<CartItem, Long> {
+public interface CartItemRepo extends JpaRepository<CartItem, Long> {
     List<CartItem> findByCartCartId(Long cartId);
 
     @Query("""
@@ -32,4 +32,7 @@ public interface CartItemRepository extends JpaRepository<CartItem, Long> {
           and ci.cartItemId in :ids
     """)
     List<CartItem> findByUserIdAndIdsFetchAll(Long userId, List<Long> ids);
+
+    //void deleteByCartItemIdIn(List<Long> ids);
+    List<CartItem> findByCartItemIdIn(List<Long> ids);
 }

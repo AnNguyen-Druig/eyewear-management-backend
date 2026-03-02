@@ -24,5 +24,21 @@ jwt:
 
 ghn:
   base-url: https://online-gateway.ghn.vn/shiip/public-api
-  token: 2180ff60-11e5-11f1-bb99-4a6bb163b6a3
-  shop-id: 4883785
+  token: ${GHN_TOKEN:2180ff60-11e5-11f1-bb99-4a6bb163b6a3}
+  shop-id: ${GHN_SHOP_ID:4883785}
+  from-district-id: ${GHN_FROM_DISTRICT_ID:1451}
+  from-ward-code: ${GHN_FROM_WARD_CODE:20904}
+  preferred-service-type-id: 2
+
+  # === Package defaults for eyewear ===
+  pkg:
+    length: 20   # cm
+    width: 15    # cm
+    height: 8    # cm
+
+    weight:
+      contact-lens: 120        # gram
+      lens: 220                # gram
+      frame: 300               # gram
+      prescription: 450        # gram (frame + lens)
+      def: 250             # gram fallback

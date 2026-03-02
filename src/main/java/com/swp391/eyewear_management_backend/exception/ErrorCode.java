@@ -9,6 +9,8 @@ public enum ErrorCode {
 
     UNCATEGORIZED_EXCEPTION(9999, "Uncategorized Exception", HttpStatus.INTERNAL_SERVER_ERROR),
     INVALID_KEY(1001, "Invalid message key", HttpStatus.BAD_REQUEST),
+    INVALID_REQUEST(1023, "Invalid request", HttpStatus.BAD_REQUEST),
+    PROMOTION_NOT_FOUND(1024, "Promotion not found", HttpStatus.NOT_FOUND),
 
     // Auth
     UNAUTHENTICATED(1006, "Unauthenticated", HttpStatus.UNAUTHORIZED),      // 401

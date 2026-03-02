@@ -5,5 +5,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface ContactLensRepository extends JpaRepository<ContactLens, Long> {
+public interface ContactLensRepo extends JpaRepository<ContactLens, Long> {
 }

@@ -35,11 +35,26 @@ public class PromotionCalculatorServiceImpl implements PromotionCalculatorServic
 
         List<Long> promoIds = promos.stream().map(Promotion::getPromotionID).toList();
 
-        Map<Long, PromotionOrderRule> orderRuleMap = orderRuleRepo.findByPromotion_PromotionIDIn(promoIds)
-                .stream().collect(Collectors.toMap(r -> r.getPromotion().getPromotionID(), r -> r));
+        //Cách viết 1:
+//        Map<Long, PromotionOrderRule> orderRuleMap = orderRuleRepo.findByPromotion_PromotionIDIn(promoIds)
+//                .stream().collect(Collectors.toMap(r -> r.getPromotion().getPromotionID(), r -> r));
+        //Cách viết 2:
+        List<PromotionOrderRule> rules = orderRuleRepo.findByPromotion_PromotionIDIn(promoIds);
+        Map<Long, PromotionOrderRule> orderRuleMap = new HashMap<>();
+        for (PromotionOrderRule r : rules) {
+            orderRuleMap.put(r.getPromotion().getPromotionID(), r);
+        }
 
-        Map<Long, List<PromotionProductTarget>> targetMap = targetRepo.findByPromotion_PromotionIDIn(promoIds)
-                .stream().collect(Collectors.groupingBy(t -> t.getPromotion().getPromotionID()));
+        //Cách 1:
+//        Map<Long, List<PromotionProductTarget>> targetMap = targetRepo.findByPromotion_PromotionIDIn(promoIds)
+//                .stream().collect(Collectors.groupingBy(t -> t.getPromotion().getPromotionID()));
+        //Cách 2:
+        List<PromotionProductTarget> targets = targetRepo.findByPromotion_PromotionIDIn(promoIds);
+        Map<Long, List<PromotionProductTarget>> targetMap = new HashMap<>();
+        for (PromotionProductTarget t : targets) {
+            Long promoId = t.getPromotion().getPromotionID();
+            targetMap.computeIfAbsent(promoId, k -> new ArrayList<>()).add(t);
+        }
 
         // Build component list (để product-scope tính đúng cho prescription: framePrice/lensPrice)
         List<Component> components = buildComponents(cartItems);
@@ -103,6 +118,7 @@ public class PromotionCalculatorServiceImpl implements PromotionCalculatorServic
     private record Component(Long cartItemId, Product product, BigDecimal amount) {}
     private record PromoEval(Promotion p, BigDecimal discount, BigDecimal base) {}
 
+    //Tách nhỏ các sản phẩm trong cùng 1 CartItem. Ví dụ: với PRESCRIPTION_ORDER thì 1 dòng CartItem có cả Frame và Lens --> Tách thành 2 component để tính tiền giảm giá nếu chỉ áp dụng cho riêng Frame hoặc riêng Lens
     private List<Component> buildComponents(List<CartItem> cartItems) {
         List<Component> list = new ArrayList<>();
         for (CartItem ci : cartItems) {
@@ -110,25 +126,26 @@ public class PromotionCalculatorServiceImpl implements PromotionCalculatorServic
 
             // Contact lens component
             if (ci.getContactLens() != null && ci.getContactLens().getProduct() != null) {
-                BigDecimal unit = firstNonNull(ci.getContactLensPrice(), ci.getPrice());
+                BigDecimal unit = ci.getContactLensPrice() != null ? ci.getContactLensPrice() : BigDecimal.ZERO;
                 list.add(new Component(ci.getCartItemId(), ci.getContactLens().getProduct(), unit.multiply(BigDecimal.valueOf(qty))));
             }
 
             // Frame component
             if (ci.getFrame() != null && ci.getFrame().getProduct() != null) {
-                BigDecimal unit = firstNonNull(ci.getFramePrice(), ci.getPrice());
+                BigDecimal unit = ci.getFramePrice() != null ? ci.getFramePrice() : BigDecimal.ZERO;
                 list.add(new Component(ci.getCartItemId(), ci.getFrame().getProduct(), unit.multiply(BigDecimal.valueOf(qty))));
             }
 
             // Lens component
             if (ci.getLens() != null && ci.getLens().getProduct() != null) {
-                BigDecimal unit = firstNonNull(ci.getLensPrice(), ci.getPrice());
+                BigDecimal unit = ci.getLensPrice() != null ? ci.getLensPrice() : BigDecimal.ZERO;
                 list.add(new Component(ci.getCartItemId(), ci.getLens().getProduct(), unit.multiply(BigDecimal.valueOf(qty))));
             }
         }
         return list;
     }
 
+    //Mục tiêu: Tính được số tiền nền ("Tạm tính" ở UI để từ số tiền nền tính được số tiền được giảm giá)
     private BigDecimal eligibleBase(
             Promotion p,
             BigDecimal subTotal,
@@ -157,10 +174,34 @@ public class PromotionCalculatorServiceImpl implements PromotionCalculatorServic
             }
             return base;
         }
-
         return BigDecimal.ZERO;
     }
 
+    //Mục tiêu: Tính số tiền được giảm giá
+    private BigDecimal computeDiscount(Promotion p, BigDecimal base) {
+        BigDecimal discount;
+
+        if ("PERCENT".equalsIgnoreCase(p.getDiscountType())) {
+            discount = base.multiply(p.getDiscountValue())
+                    .divide(new BigDecimal("100"), 0, RoundingMode.HALF_UP);
+
+            if (p.getMaxDiscountValue() != null && p.getMaxDiscountValue().compareTo(BigDecimal.ZERO) > 0) {
+                discount = discount.min(p.getMaxDiscountValue());
+            }
+        } else {
+            // AMOUNT
+            discount = p.getDiscountValue();
+        }
+
+        // cannot exceed base
+        if (discount.compareTo(base) > 0) discount = base;
+
+        // normalize
+        if (discount.compareTo(BigDecimal.ZERO) < 0) discount = BigDecimal.ZERO;
+        return discount.setScale(0, RoundingMode.HALF_UP);
+    }
+
+    //Mục tiêu: tìm ra product có promotionId trong List PromotionProductTarget
     private boolean matchesAnyTarget(Product product, List<PromotionProductTarget> targets) {
         for (PromotionProductTarget t : targets) {
             String type = t.getTargetType();
@@ -189,29 +230,7 @@ public class PromotionCalculatorServiceImpl implements PromotionCalculatorServic
         return false;
     }
 
-    private BigDecimal computeDiscount(Promotion p, BigDecimal base) {
-        BigDecimal discount;
-
-        if ("PERCENT".equalsIgnoreCase(p.getDiscountType())) {
-            discount = base.multiply(p.getDiscountValue())
-                    .divide(new BigDecimal("100"), 0, RoundingMode.HALF_UP);
-
-            if (p.getMaxDiscountValue() != null && p.getMaxDiscountValue().compareTo(BigDecimal.ZERO) > 0) {
-                discount = discount.min(p.getMaxDiscountValue());
-            }
-        } else {
-            // AMOUNT
-            discount = p.getDiscountValue();
-        }
-
-        // cannot exceed base
-        if (discount.compareTo(base) > 0) discount = base;
-
-        // normalize
-        if (discount.compareTo(BigDecimal.ZERO) < 0) discount = BigDecimal.ZERO;
-        return discount.setScale(0, RoundingMode.HALF_UP);
-    }
-
+    //Mục tiêu: giảm bao nhiêu cho mỗi cartItem
     private Map<Long, BigDecimal> allocateDiscountToItems(
             Promotion p,
             BigDecimal discountAmount,
@@ -247,6 +266,7 @@ public class PromotionCalculatorServiceImpl implements PromotionCalculatorServic
         return proportionalAllocate(eligibleComponentByItem, discountAmount);
     }
 
+    //Mục tiêu: chia totalDiscount theo tỷ lệ của baseByKey
     private Map<Long, BigDecimal> proportionalAllocate(Map<Long, BigDecimal> baseByKey, BigDecimal totalDiscount) {
         BigDecimal baseSum = baseByKey.values().stream().reduce(BigDecimal.ZERO, BigDecimal::add);
         if (baseSum.compareTo(BigDecimal.ZERO) <= 0) return Map.of();
@@ -273,8 +293,8 @@ public class PromotionCalculatorServiceImpl implements PromotionCalculatorServic
         return out;
     }
 
-    private BigDecimal firstNonNull(BigDecimal a, BigDecimal b) {
-        if (a != null && a.compareTo(BigDecimal.ZERO) > 0) return a;
-        return b == null ? BigDecimal.ZERO : b;
-    }
+//    private BigDecimal firstNonNull(BigDecimal a, BigDecimal b) {
+//        if (a != null && a.compareTo(BigDecimal.ZERO) > 0) return a;
+//        return b == null ? BigDecimal.ZERO : b;
+//    }
 }

@@ -24,4 +24,7 @@ public class CheckoutLineItemResponse {
     private Long contactLensId;
     private Long frameId;
     private Long lensId;
+
+    //Prescription information
+    private PrescriptionInfoResponse prescription;
 }

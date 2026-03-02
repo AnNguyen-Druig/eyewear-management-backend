@@ -7,6 +7,6 @@ import org.springframework.data.rest.core.annotation.RepositoryRestResource;
 import java.util.Optional;
 
 @RepositoryRestResource(path = "carts")
-public interface CartRepository extends JpaRepository<Cart, Long> {
+public interface CartRepo extends JpaRepository<Cart, Long> {
     Optional<Cart> findByUserUserId(Long userId);
 }
