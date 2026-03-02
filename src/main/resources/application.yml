@@ -44,6 +44,6 @@ ghn:
       def: 250             # gram fallback
 
 cloudinary:
-  cloud-namedbgkfgkrl
-  api-key=349146117748721
-  api-secret=dW4_Qy27QgUd63_ihqd1iI1173M
+  cloud-name: dbgkfgkrl
+  api-key: 349146117748721
+  api-secret: dW4_Qy27QgUd63_ihqd1iI1173M
