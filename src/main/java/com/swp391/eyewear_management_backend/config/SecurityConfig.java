@@ -41,6 +41,7 @@ public class SecurityConfig {
             "/v3/api-docs/**",
             "/swagger-ui/**",
             "/swagger-ui.html"
+
     };
 
     private static final String[] PUBLIC_POST_ENDPOINTS = {
@@ -48,7 +49,8 @@ public class SecurityConfig {
             "/auth/token",
             "/auth/introspect",
             "/auth/logout",
-            "/auth/refresh"
+            "/auth/refresh",
+            "/api/payment/payos-webhook"
     };
 
     @Autowired

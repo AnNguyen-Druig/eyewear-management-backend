@@ -6,6 +6,8 @@ import org.springframework.data.jpa.repository.Query;
 
 import java.util.Optional;
 
+import java.util.Optional;
+
 public interface OrderRepo extends JpaRepository<Order, Long> {
 
     @Query("""
@@ -18,4 +20,7 @@ public interface OrderRepo extends JpaRepository<Order, Long> {
         where o.orderID = :orderId
     """)
     Optional<Order> findByIdFetchStatus(Long orderId);
+
+    Optional<Order> findByOrderCode(String orderCode);
+
 }
