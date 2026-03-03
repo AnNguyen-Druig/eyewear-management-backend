@@ -48,6 +48,7 @@ cloudinary:
   api-key: 349146117748721
   api-secret: dW4_Qy27QgUd63_ihqd1iI1173M
 
+
 vnpay:
   pay-url: ${VNPAY_PAY_URL:https://sandbox.vnpayment.vn/paymentv2/vpcpay.html}
   tmn-code: ${VNPAY_TMN_CODE:WG7VHCKH}
@@ -71,3 +72,9 @@ app:
     base-url: ${FRONTEND_BASE_URL:http://localhost:5173}
     success-path: /order-success
     fail-path: /payment-result
+
+payos:
+  client-id: 6cad7040-fb24-4701-8ab0-7c2313c13f4e
+  api-key: 4f3f8b40-0afb-4ffc-8a7d-c74dea4230af
+  checksum-key: db796b0590d5779b8b5bac09a915fe58a533c9f24d1c3057b0c16f334b2a44c6
+
