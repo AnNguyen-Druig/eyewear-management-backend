@@ -5,11 +5,10 @@ import com.swp391.eyewear_management_backend.dto.request.PaymentRequest;
 import com.swp391.eyewear_management_backend.dto.response.PaymentResponse;
 
 public interface PaymentService {
-    PaymentResponse createPaymentLink(PaymentRequest request);
+    String createPayOSPaymentUrl(Long paymentId, long amount, String orderCodeStr);
 
     String checkOrderStatus(Long orderCode);
 
     void processWebhook(ObjectNode webhookBody);
 
-    String createPayOSPaymentUrl(Long paymentId, long amount, String orderCodeStr);
 }

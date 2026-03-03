@@ -59,50 +59,6 @@ public class PaymentServiceImpl implements PaymentService {
     }
 
     @Override
-    @Transactional
-    public PaymentResponse createPaymentLink(PaymentRequest request) {
-        try {
-            long payosOrderCode = System.currentTimeMillis() / 1000;
-            String dbOrderCode = String.valueOf(payosOrderCode);
-
-            User currentUser = userRepo.findById(request.getUserId())
-                    .orElseThrow(() -> new RuntimeException("Không tìm thấy User với ID: " + request.getUserId()));
-
-            Order newOrder = Order.builder()
-                    .orderCode(dbOrderCode)
-                    .user(currentUser)
-                    .subTotal(BigDecimal.valueOf(request.getTotalAmount()))
-                    .taxAmount(BigDecimal.ZERO)
-                    .discountAmount(BigDecimal.ZERO)
-                    .shippingFee(BigDecimal.ZERO)
-                    .orderType("MIX_ORDER")
-                    .orderStatus("PENDING")
-                    .orderDate(LocalDateTime.now())
-                    .build();
-
-            orderRepository.save(newOrder);
-
-            String description = "Kinh mat " + payosOrderCode;
-            String returnUrl = "http://localhost:5173/success";
-            String cancelUrl = "http://localhost:5173/cancel";
-
-            CreatePaymentLinkRequest paymentRequest = CreatePaymentLinkRequest.builder()
-                    .orderCode(payosOrderCode)
-                    .amount((long) request.getTotalAmount())
-                    .description(description)
-                    .returnUrl(returnUrl)
-                    .cancelUrl(cancelUrl)
-                    .build();
-
-            CreatePaymentLinkResponse checkoutResponse = payOS.paymentRequests().create(paymentRequest);
-
-            return new PaymentResponse(checkoutResponse.getCheckoutUrl(), payosOrderCode);
-        } catch (Exception e) {
-            throw new RuntimeException("Lỗi khi tạo link thanh toán: " + e.getMessage());
-        }
-    }
-
-    @Override
     public String checkOrderStatus(Long orderCode) {
         Optional<Order> orderOpt = orderRepository.findByOrderCode(String.valueOf(orderCode));
         if (orderOpt.isPresent()) {

@@ -21,18 +21,6 @@ import java.util.Map;
 public class PaymentController {
 
     private final PaymentService paymentService;
-
-    @PostMapping("/create-payos")
-    public ResponseEntity<?> createPaymentLink(@RequestBody PaymentRequest request) {
-        try {
-            PaymentResponse response = paymentService.createPaymentLink(request);
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            log.error("Lỗi tạo thanh toán: ", e); // Dùng log thay cho e.printStackTrace()
-            return ResponseEntity.internalServerError().body("Lỗi tạo thanh toán: " + e.getMessage());
-        }
-    }
-
     @GetMapping("/check-status/{orderCode}")
     public ResponseEntity<?> checkStatus(@PathVariable Long orderCode) {
         String status = paymentService.checkOrderStatus(orderCode);
@@ -41,7 +29,6 @@ public class PaymentController {
         return ResponseEntity.ok(response);
     }
 
-    // API 3: Dành riêng cho Ngrok và PayOS đâm vào
     @PostMapping("/payos-webhook")
     public ResponseEntity<?> handleWebhook(@RequestBody String jsonBody) {
         try {
