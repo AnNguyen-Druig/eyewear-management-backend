@@ -13,7 +13,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-// Chỉ import đúng 3 class này của PayOS 2.0.1, tuyệt đối KHÔNG import vn.payos.type...
 import vn.payos.PayOS;
 import vn.payos.model.v2.paymentRequests.CreatePaymentLinkRequest;
 import vn.payos.model.v2.paymentRequests.CreatePaymentLinkResponse;
@@ -55,8 +54,8 @@ public class PaymentServiceImpl implements PaymentService {
             orderRepository.save(newOrder);
 
             String description = "Kinh mat " + payosOrderCode;
-            String returnUrl = "http://localhost:3000/success";
-            String cancelUrl = "http://localhost:3000/cancel";
+            String returnUrl = "http://localhost:5173/success";
+            String cancelUrl = "http://localhost:5173/cancel";
 
             CreatePaymentLinkRequest paymentRequest = CreatePaymentLinkRequest.builder()
                     .orderCode(payosOrderCode)
