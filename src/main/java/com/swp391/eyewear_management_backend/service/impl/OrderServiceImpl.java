@@ -3,16 +3,14 @@ package com.swp391.eyewear_management_backend.service.impl;
 import com.swp391.eyewear_management_backend.dto.request.CheckoutPreviewRequest;
 import com.swp391.eyewear_management_backend.dto.request.CreateOrderRequest;
 import com.swp391.eyewear_management_backend.dto.request.ShippingAddressRequest;
-import com.swp391.eyewear_management_backend.dto.response.CheckoutLineItemResponse;
-import com.swp391.eyewear_management_backend.dto.response.CheckoutPreviewResponse;
-import com.swp391.eyewear_management_backend.dto.response.CreateOrderResponse;
+import com.swp391.eyewear_management_backend.dto.response.*;
 import com.swp391.eyewear_management_backend.entity.*;
 import com.swp391.eyewear_management_backend.exception.AppException;
 import com.swp391.eyewear_management_backend.exception.ErrorCode;
 import com.swp391.eyewear_management_backend.repository.*;
 import com.swp391.eyewear_management_backend.service.CheckoutService;
 import com.swp391.eyewear_management_backend.service.OrderService;
-import com.swp391.eyewear_management_backend.service.PaymentGatewayService;
+import com.swp391.eyewear_management_backend.service.PaymentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -24,6 +22,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -45,7 +44,7 @@ public class OrderServiceImpl implements OrderService {
     private final PromotionRepo promotionRepo;
 
     private final CheckoutService checkoutService; // reuse preview calculation
-    private final PaymentGatewayService paymentGatewayService; // stub for now
+    private final PaymentService paymentService; // stub for now
 
     @Override
     @Transactional
@@ -313,11 +312,12 @@ public class OrderServiceImpl implements OrderService {
         if (createdPayment != null && !"COD".equalsIgnoreCase(createdPayment.getPaymentMethod())) {
             redirect = true;
             paymentId = createdPayment.getPaymentID();
-            paymentUrl = paymentGatewayService.createPaymentUrl(
-                    createdPayment.getPaymentMethod(),
-                    savedOrder.getOrderID(),
-                    createdPayment.getPaymentID(),
-                    createdPayment.getAmount()
+            long payosAmount = createdPayment.getAmount().longValue();
+
+            paymentUrl = paymentService.createPayOSPaymentUrl(
+                    paymentId,
+                    payosAmount,
+                    savedOrder.getOrderCode()
             );
         }
 
@@ -341,6 +341,75 @@ public class OrderServiceImpl implements OrderService {
                 .paymentRedirectRequired(redirect)
                 .paymentUrl(paymentUrl)
                 .paymentId(paymentId)
+                .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public OrderStatusResponse getOrderStatus(Long orderId) {
+
+        // 1) current user
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated() || auth instanceof AnonymousAuthenticationToken) {
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        }
+
+        String username = auth.getName();
+        User currentUser = userRepo.findByUsername(username)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+
+        // 2) load order (fetch invoice + payments + shippingInfo)
+        Order order = orderRepo.findByIdFetchStatus(orderId)
+                .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_FOUND)); // bạn thêm ErrorCode nếu chưa có
+
+        // 3) authorize: owner hoặc ADMIN
+        boolean isOwner = order.getUser() != null
+                && Objects.equals(order.getUser().getUserId(), currentUser.getUserId());
+
+        boolean isAdmin = auth.getAuthorities().stream()
+                .anyMatch(a -> "ROLE_ADMIN".equalsIgnoreCase(a.getAuthority())
+                        || "ADMIN".equalsIgnoreCase(a.getAuthority()));
+
+        if (!isOwner && !isAdmin) {
+            throw new AppException(ErrorCode.UNAUTHORIZED); // bạn thêm ErrorCode nếu chưa có
+        }
+
+        // 4) map payments
+        List<PaymentStatusResponse> payments = (order.getPayments() == null) ? List.of()
+                : order.getPayments().stream()
+                .map(p -> PaymentStatusResponse.builder()
+                        .paymentId(p.getPaymentID())
+                        .paymentPurpose(p.getPaymentPurpose())
+                        .paymentMethod(p.getPaymentMethod())
+                        .status(p.getStatus())
+                        .amount(p.getAmount())
+                        .paymentDate(p.getPaymentDate())
+                        .build())
+                // sort: DEPOSIT trước, rồi FULL/REMAINING tuỳ bạn
+                .sorted(Comparator.comparing(PaymentStatusResponse::getPaymentPurpose, Comparator.nullsLast(String::compareTo)))
+                .collect(Collectors.toList());
+
+        String invoiceStatus = (order.getInvoice() != null) ? order.getInvoice().getStatus() : null;
+
+        LocalDateTime expectedDeliveryAt = (order.getShippingInfo() != null)
+                ? order.getShippingInfo().getExpectedDeliveryAt()
+                : null;
+
+        return OrderStatusResponse.builder()
+                .orderId(order.getOrderID())
+                .orderCode(order.getOrderCode())
+                .orderStatus(order.getOrderStatus())
+                .orderType(order.getOrderType())
+
+                .subTotal(order.getSubTotal())
+                .discountAmount(order.getDiscountAmount())
+                .shippingFee(order.getShippingFee())
+                .totalAmount(order.getTotalAmount()) // computed column DB
+
+                .invoiceStatus(invoiceStatus)
+                .expectedDeliveryAt(expectedDeliveryAt)
+
+                .payments(payments)
                 .build();
     }
 
@@ -390,13 +459,13 @@ public class OrderServiceImpl implements OrderService {
     /**
      * Convert rule UI payment => plan tạo Payment records.
      * - Nếu không cần cọc:
-     *    COD => 1 record FULL COD PENDING
-     *    VNPAY/MOMO => 1 record FULL online PENDING (redirect)
+     * COD => 1 record FULL COD PENDING
+     * VNPAY/MOMO => 1 record FULL online PENDING (redirect)
      * - Nếu cần cọc:
-     *    paymentMethod=COD => DEPOSIT online + REMAINING COD
-     *    paymentMethod=VNPAY/MOMO:
-     *       payStrategy=FULL => FULL online
-     *       payStrategy=DEPOSIT => DEPOSIT online + REMAINING COD
+     * paymentMethod=COD => DEPOSIT online + REMAINING COD
+     * paymentMethod=VNPAY/MOMO:
+     * payStrategy=FULL => FULL online
+     * payStrategy=DEPOSIT => DEPOSIT online + REMAINING COD
      */
     private PaymentPlan buildPaymentPlan(CheckoutPreviewResponse preview, CreateOrderRequest req) {
         boolean depositRequired = preview.isDepositRequired();
