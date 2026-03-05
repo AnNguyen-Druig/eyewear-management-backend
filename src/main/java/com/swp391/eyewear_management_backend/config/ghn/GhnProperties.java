@@ -17,7 +17,7 @@ public class GhnProperties {
     // chọn loại dịch vụ ưu tiên (2 = "Chuẩn" theo list GHN)
     private Integer preferredServiceTypeId = 2;
 
-    // ===== NEW: package config =====
+    // ===== NEW: package config =========
     private PackageConfig pkg = new PackageConfig();
 
     @Data
