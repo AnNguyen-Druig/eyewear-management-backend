@@ -11,7 +11,9 @@ import com.swp391.eyewear_management_backend.dto.request.LogoutRequest;
 import com.swp391.eyewear_management_backend.dto.request.RefreshRequest;
 import com.swp391.eyewear_management_backend.dto.response.AuthenticationResponse;
 import com.swp391.eyewear_management_backend.dto.response.IntrospectResponse;
+import com.swp391.eyewear_management_backend.dto.response.RoleResponse;
 import com.swp391.eyewear_management_backend.entity.InvalidatedToken;
+import com.swp391.eyewear_management_backend.entity.Role;
 import com.swp391.eyewear_management_backend.entity.User;
 import com.swp391.eyewear_management_backend.exception.AppException;
 import com.swp391.eyewear_management_backend.exception.ErrorCode;
@@ -86,6 +88,8 @@ public class AuthenticationService {
         return AuthenticationResponse.builder()
                 .token(token)
                 .authenticated(true)
+                .role(extractRole(user))
+                .name(user.getName())
                 .build();
     }
 
@@ -129,9 +133,18 @@ public class AuthenticationService {
         return AuthenticationResponse.builder()
                 .token(token)
                 .authenticated(true)
+                .role(extractRole(user))
+                .name(user.getName())
                 .build();
     }
 
+    private String extractRole(User user) {
+        if (user == null || user.getRole() == null || user.getRole().getTypeName() == null) {
+            return null;
+        }
+
+        return user.getRole().getTypeName().trim().toUpperCase();
+    }
 
     private SignedJWT verifyToken(String token, boolean isRefresh) throws JOSEException, ParseException {
         JWSVerifier verifier = new MACVerifier(SIGNER_KEY.getBytes());
@@ -182,7 +195,7 @@ public class AuthenticationService {
     }
 
     private String buildScope(User user) {
-        StringJoiner joiner = new StringJoiner(" ");
+        StringJoiner joiner = new StringJoiner(",");
 
         if (user != null && user.getRole() != null) {
             String roleType = user.getRole().getTypeName();

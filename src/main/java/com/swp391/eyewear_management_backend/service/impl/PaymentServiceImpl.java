@@ -18,6 +18,7 @@ import vn.payos.model.v2.paymentRequests.CreatePaymentLinkRequest;
 import vn.payos.model.v2.paymentRequests.CreatePaymentLinkResponse;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.Optional;
 
@@ -55,6 +56,54 @@ public class PaymentServiceImpl implements PaymentService {
             return checkoutResponse.getCheckoutUrl();
         } catch (Exception e) {
             throw new RuntimeException("Lỗi khi tạo link thanh toán PayOS: " + e.getMessage());
+        }
+    }
+
+    @Override
+    @Transactional
+    public PaymentResponse createPaymentLink(PaymentRequest request) {
+        try {
+            if (request.getTotalAmount() == null || request.getTotalAmount().compareTo(BigDecimal.ZERO) <= 0) {
+                throw new RuntimeException("Số tiền thanh toán không hợp lệ");
+            }
+
+            long payosOrderCode = System.currentTimeMillis() / 1000;
+            String dbOrderCode = String.valueOf(payosOrderCode);
+
+            User currentUser = userRepo.findById(request.getUserId())
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy User với ID: " + request.getUserId()));
+
+            Order newOrder = Order.builder()
+                    .orderCode(dbOrderCode)
+                    .user(currentUser)
+                    .subTotal(request.getTotalAmount())
+                    .taxAmount(BigDecimal.ZERO)
+                    .discountAmount(BigDecimal.ZERO)
+                    .shippingFee(BigDecimal.ZERO)
+                    .orderType("MIX_ORDER")
+                    .orderStatus("PENDING")
+                    .orderDate(LocalDateTime.now())
+                    .build();
+
+            orderRepository.save(newOrder);
+
+            String description = "Kinh mat " + payosOrderCode;
+            String returnUrl = "http://localhost:5173/success";
+            String cancelUrl = "http://localhost:5173/cancel";
+
+            CreatePaymentLinkRequest paymentRequest = CreatePaymentLinkRequest.builder()
+                    .orderCode(payosOrderCode)
+                    .amount(request.getTotalAmount().setScale(0, RoundingMode.HALF_UP).longValue())
+                    .description(description)
+                    .returnUrl(returnUrl)
+                    .cancelUrl(cancelUrl)
+                    .build();
+
+            CreatePaymentLinkResponse checkoutResponse = payOS.paymentRequests().create(paymentRequest);
+
+            return new PaymentResponse(checkoutResponse.getCheckoutUrl(), payosOrderCode);
+        } catch (Exception e) {
+            throw new RuntimeException("Lỗi khi tạo link thanh toán: " + e.getMessage());
         }
     }
 
