@@ -21,6 +21,16 @@ public class StaffOrderController {
 
     private final StaffOrderService staffOrderService;
 
+    @GetMapping
+//    @PreAuthorize("hasAnyAuthority('ROLE_SALES STAFF','ROLE_ADMIN','ROLE_MANAGER')")
+    public ApiResponse<List<StaffOrderListResponse>> getOrders() {
+        List<StaffOrderListResponse> result = staffOrderService.getOrdersForStaff();
+        return ApiResponse.<List<StaffOrderListResponse>>builder()
+                .message("OK")
+                .result(result)
+                .build();
+    }
+
     @PostMapping("/search")
 //    @PreAuthorize("hasAnyAuthority('ROLE_SALES STAFF','ROLE_ADMIN','ROLE_MANAGER')")
     public ApiResponse<Page<StaffOrderListResponse>> searchOrders(
