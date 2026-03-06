@@ -69,6 +69,15 @@ public class StaffOrderServiceImpl implements StaffOrderService {
 
     @Override
     @PreAuthorize("hasAnyAuthority('ROLE_SALES STAFF','ROLE_ADMIN','ROLE_MANAGER')")
+    public List<StaffOrderListResponse> getOrdersForStaff() {
+        StaffOrderSearchRequest request = StaffOrderSearchRequest.builder().build();
+        Specification<Order> specification = buildSpecification(request, false);
+        List<Order> orders = orderRepo.findAll(specification, Sort.by("orderDate").descending());
+        return orders.stream().map(staffOrderMapper::toStaffOrderListResponse).toList();
+    }
+
+    @Override
+    @PreAuthorize("hasAnyAuthority('ROLE_SALES STAFF','ROLE_ADMIN','ROLE_MANAGER')")
     public Page<StaffOrderListResponse> searchOrdersForStaff(StaffOrderSearchRequest request) {
         Pageable pageable = buildPageable(request);
         Specification<Order> specification = buildSpecification(request, false);

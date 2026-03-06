@@ -8,6 +8,7 @@ import org.springframework.data.domain.Page;
 import java.util.List;
 
 public interface StaffOrderService {
+    List<StaffOrderListResponse> getOrdersForStaff();
     Page<StaffOrderListResponse> searchOrdersForStaff(StaffOrderSearchRequest request);
     Page<StaffOrderListResponse> searchOrdersForOperationStaff(StaffOrderSearchRequest request);
     List<OrderStatusGroupResponse> getSalesStaffOrderStatuses();
