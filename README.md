@@ -10,7 +10,7 @@ Backend API cho hệ thống quản lý kính mắt sử dụng Spring Boot.
 
 ## Cấu hình Database
 
-1. Tạo database tên `EyewearManagement` trong SQL Server
+1. Tạo database tên EyewearManagement trong SQL Server
 2. Copy file `application-example.properties` thành `application.properties`
 3. Cập nhật thông tin database trong `application.properties`:
     - `spring.datasource.username`: Username SQL Server của bạn
@@ -30,3 +30,4 @@ mvn spring-boot:run
 ## Tác giả
 
 - AnNguyen-Druig
+- nguyentrandatan@gmail.com

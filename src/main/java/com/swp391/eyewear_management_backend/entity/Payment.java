@@ -1,10 +1,7 @@
 package com.swp391.eyewear_management_backend.entity;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.NoArgsConstructor;
-import lombok.ToString;
+import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -13,7 +10,9 @@ import java.time.LocalDateTime;
 @Table(name = "Payment")
 @Getter
 @Setter
-@NoArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PROTECTED) // JPA cần
+@AllArgsConstructor(access = AccessLevel.PRIVATE)  // Builder cần
+@Builder
 @ToString(exclude = "order")
 public class Payment {
 
@@ -22,29 +21,30 @@ public class Payment {
     @Column(name = "Payment_ID")
     private Long paymentID;
 
-    @ManyToOne(fetch = FetchType.LAZY, cascade = {
-            CascadeType.PERSIST, CascadeType.MERGE, CascadeType.DETACH, CascadeType.REFRESH
-    })
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "Order_ID", nullable = false)
     private Order order;
 
-    @Column(name = "Payment_Date", nullable = false)
-    private LocalDateTime paymentDate;
+    @Column(name = "Payment_Purpose", nullable = false, columnDefinition = "NVARCHAR(20)")
+    private String paymentPurpose; // DEPOSIT / FULL / REMAINING
 
-    @Column(name = "Payment_Method", nullable = false, columnDefinition = "NVARCHAR(50)")
-    private String paymentMethod;
+    @Column(name = "Created_At", nullable = false)
+    private LocalDateTime createdAt;
+
+    @Column(name = "Payment_Date")
+    private LocalDateTime paymentDate; // nullable
+
+    @Column(name = "Payment_Method", nullable = false, columnDefinition = "NVARCHAR(20)")
+    private String paymentMethod; // COD / MOMO / VNPAY
 
     @Column(name = "Amount", nullable = false, precision = 15, scale = 2)
     private BigDecimal amount;
 
     @Column(name = "Status", nullable = false, columnDefinition = "NVARCHAR(20)")
-    private String status;
+    private String status; // PENDING / SUCCESS / FAILED / REFUNDED
 
-    public Payment(Order order, LocalDateTime paymentDate, String paymentMethod, BigDecimal amount, String status) {
-        this.order = order;
-        this.paymentDate = paymentDate;
-        this.paymentMethod = paymentMethod;
-        this.amount = amount;
-        this.status = status;
+    @PrePersist
+    public void prePersist() {
+        if (createdAt == null) createdAt = LocalDateTime.now();
     }
 }

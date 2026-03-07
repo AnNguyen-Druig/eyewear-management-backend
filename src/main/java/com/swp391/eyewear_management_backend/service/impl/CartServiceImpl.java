@@ -27,28 +27,28 @@ import java.util.stream.Collectors;
 public class CartServiceImpl implements CartService {
 
     @Autowired
-    private CartRepository cartRepository;
+    private CartRepo cartRepository;
 
     @Autowired
-    private CartItemRepository cartItemRepository;
+    private CartItemRepo cartItemRepository;
 
     @Autowired
     private UserRepo userRepository;
 
     @Autowired
-    private ContactLensRepository contactLensRepository;
+    private ContactLensRepo contactLensRepository;
 
     @Autowired
-    private FrameRepository frameRepository;
+    private FrameRepo frameRepository;
 
     @Autowired
-    private LensRepository lensRepository;
+    private LensRepo lensRepository;
 
     @Autowired
     private CartItemMapper cartItemMapper;
 
     @Autowired
-    private CartItemPrescriptionRepository cartItemPrescriptionRepository;
+    private CartItemPrescriptionRepo cartItemPrescriptionRepository;
 
     private User getCurrentUser() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();

@@ -1,5 +1,6 @@
 package com.swp391.eyewear_management_backend.controller;
 
+import com.swp391.eyewear_management_backend.dto.request.UpdateDefaultAddressRequest;
 import com.swp391.eyewear_management_backend.dto.request.UserCreationRequest;
 import com.swp391.eyewear_management_backend.dto.request.UserUpdateRequest;
 import com.swp391.eyewear_management_backend.dto.response.ApiResponse;
@@ -12,6 +13,7 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Bean;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
@@ -25,14 +27,13 @@ import java.util.List;
 @SecurityRequirement(name = "bearerAuth")
 public class UserController {
 
-    //UserService userService;
-    UserServiceImpl userServiceImpl;
+    UserService userService;
 
     @PostMapping
     ApiResponse<UserRespone> createUser(@RequestBody @Valid UserCreationRequest request) {
         ApiResponse<UserRespone> apiRespone = new ApiResponse<>();
 
-        apiRespone.setResult(userServiceImpl.createRequest(request));
+        apiRespone.setResult(userService.createRequest(request));
 
         return apiRespone;
     }
@@ -45,28 +46,28 @@ public class UserController {
         authentication.getAuthorities().forEach(grantedAuthority -> log.info("Authority : {}", grantedAuthority.getAuthority()));
 
         return ApiResponse.<List<UserRespone>>builder()
-                .result(userServiceImpl.getUsers())
+                .result(userService.getUsers())
                 .build();
     }
 
     @GetMapping("/{userId}")
     ApiResponse<UserRespone> getUser(@PathVariable Long userId) {
         return ApiResponse.<UserRespone>builder()
-                .result(userServiceImpl.getUserById(userId))
+                .result(userService.getUserById(userId))
                 .build();
     }
 
     @GetMapping("/my-info")
     ApiResponse<UserRespone> getMyInfo() {
         return ApiResponse.<UserRespone>builder()
-                .result(userServiceImpl.getMyInfo())
+                .result(userService.getMyInfo())
                 .build();
     }
 
     @PutMapping("/my-info")
     ApiResponse<UserRespone> updateMyInfo(@RequestBody @Valid UserUpdateRequest request) {
         return ApiResponse.<UserRespone>builder()
-                .result(userServiceImpl.updateMyInfo(request))
+                .result(userService.updateMyInfo(request))
                 .build();
     }
 
@@ -77,7 +78,16 @@ public class UserController {
 
     @DeleteMapping("/{userId}")
     public String deleteUserById(@PathVariable Long userId) {
-        userServiceImpl.deleteUserById(userId);
+        userService.deleteUserById(userId);
         return "User has been deleted";
     }
+
+    @PutMapping("/my-address")
+    ApiResponse<UserRespone> updateMyDefaultAddress(@RequestBody @Valid UpdateDefaultAddressRequest request) {
+        return ApiResponse.<UserRespone>builder()
+                .message("Update default address successfully")
+                .result(userService.updateMyDefaultAddress(request))
+                .build();
+    }
+
 }

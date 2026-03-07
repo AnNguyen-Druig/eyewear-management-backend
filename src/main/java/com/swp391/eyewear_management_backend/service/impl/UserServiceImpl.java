@@ -1,5 +1,6 @@
 package com.swp391.eyewear_management_backend.service.impl;
 
+import com.swp391.eyewear_management_backend.dto.request.UpdateDefaultAddressRequest;
 import com.swp391.eyewear_management_backend.dto.request.UserCreationRequest;
 import com.swp391.eyewear_management_backend.dto.request.UserUpdateRequest;
 import com.swp391.eyewear_management_backend.dto.response.UserRespone;
@@ -10,6 +11,7 @@ import com.swp391.eyewear_management_backend.exception.ErrorCode;
 import com.swp391.eyewear_management_backend.mapper.UserMapper;
 import com.swp391.eyewear_management_backend.repository.RoleRepo;
 import com.swp391.eyewear_management_backend.repository.UserRepo;
+import com.swp391.eyewear_management_backend.service.UserService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -26,7 +28,7 @@ import java.util.List;
 @RequiredArgsConstructor        //Tiêm Bean vào Class bằng CTOR -> Khỏi @Autowired
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)   //để kiểu private final tự động cho các field cần tiêm Bean vào class
 @Slf4j
-public class UserServiceImpl {
+public class UserServiceImpl implements UserService {
 
     UserRepo userRepo;
     UserMapper userMapper;
@@ -124,10 +126,42 @@ public class UserServiceImpl {
         userRepo.deleteById(id);
     }
 
+    @Override
+    public User findByName(String userName) {
+        return userRepo.findByUsername(userName)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+    }
+
     //hàm normalize để convert "" --> null , check trimOrNull
     private String normalize(String s) {
         if(s == null) return null;
         String exist = s.trim();
         return exist.isEmpty() ? s : exist;
+    }
+
+    @Override
+    public UserRespone updateMyDefaultAddress(UpdateDefaultAddressRequest request) {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        User user = userRepo.findByUsername(username)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+        String fullAddress = buildFullAddress(request);
+        user.setAddress(fullAddress);
+        // ✅ update code/name để lần sau khỏi cần chọn lại
+        user.setProvinceCode(request.getProvinceCode());
+        user.setProvinceName(request.getProvinceName());
+        user.setDistrictCode(request.getDistrictCode());
+        user.setDistrictName(request.getDistrictName());
+        user.setWardCode(request.getWardCode());
+        user.setWardName(request.getWardName());
+        return userMapper.toUserRespone(userRepo.save(user));
+    }
+
+    private String buildFullAddress(UpdateDefaultAddressRequest request) {
+        String street = request.getStreet().trim();
+        String ward = request.getWardName().trim();
+        String district = request.getDistrictName().trim();
+        String province = request.getProvinceName().trim();
+
+        return String.format("%s, %s, %s, %s", street, ward, district, province);
     }
 }

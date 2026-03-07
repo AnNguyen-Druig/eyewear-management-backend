@@ -1,5 +1,6 @@
 package com.swp391.eyewear_management_backend.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -16,6 +17,7 @@ public class CartItemPrescription {
     @Column(name = "Prescription_ID")
     private Long prescriptionId;
 
+    @JsonIgnore
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "Cart_Item_ID", nullable = false)
     private CartItem cartItem;

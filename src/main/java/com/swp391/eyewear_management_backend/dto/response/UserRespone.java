@@ -21,6 +21,12 @@ public class UserRespone {
     String address;
     String idNumber;
     RoleResponse role;
+    Integer provinceCode;
+    String provinceName;
+    Integer districtCode;
+    String districtName;
+    String wardCode;
+    String wardName;
 }
 
 

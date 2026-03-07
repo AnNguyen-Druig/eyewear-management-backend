@@ -1,21 +1,21 @@
 package com.swp391.eyewear_management_backend.entity;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
-import org.hibernate.annotations.Formula;
-
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
 @Entity
 @Table(name = "[Order]")
-@Getter
-@Setter
+@Builder
+@Data
 @NoArgsConstructor
+@AllArgsConstructor
 @ToString(exclude = {"user", "orderDetails", "payments", "invoice", "orderProcessings", "orderPromotions", "prescriptionOrder"})
 public class Order {
 
@@ -30,6 +30,10 @@ public class Order {
     @JoinColumn(name = "User_ID", nullable = false)
     private User user;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "Promotion_ID")
+    private Promotion promotion; // nullable
+
     @Column(name = "Order_Code", unique = true, columnDefinition = "NVARCHAR(50)")
     private String orderCode;
 
@@ -39,13 +43,17 @@ public class Order {
     @Column(name = "Sub_Total", nullable = false, precision = 15, scale = 2)
     private BigDecimal subTotal;
 
-    @Column(name = "Tax_Amount", precision = 15, scale = 2)
-    private BigDecimal taxAmount;
+    @Column(name = "Tax_Amount", nullable = false, precision = 15, scale = 2)
+    private BigDecimal taxAmount = BigDecimal.ZERO;
 
-    @Column(name = "Discount_Amount", precision = 15, scale = 2)
-    private BigDecimal discountAmount;
+    @Column(name = "Discount_Amount", nullable = false, precision = 15, scale = 2)
+    private BigDecimal discountAmount = BigDecimal.ZERO;
 
-    @Formula("(Sub_Total + ISNULL(Tax_Amount, 0) - ISNULL(Discount_Amount, 0))")
+    @Column(name = "Shipping_Fee", nullable = false, precision = 15, scale = 2)
+    private BigDecimal shippingFee = BigDecimal.ZERO;
+
+    // Total_Amount là computed column trong DB => chỉ đọc
+    @Column(name = "Total_Amount", insertable = false, updatable = false, precision = 15, scale = 2)
     private BigDecimal totalAmount;
 
     @Column(name = "Order_Type", nullable = false, columnDefinition = "NVARCHAR(20)")
@@ -66,21 +74,17 @@ public class Order {
     @OneToMany(mappedBy = "order", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     private List<OrderProcessing> orderProcessings;
 
-    @OneToMany(mappedBy = "order", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-    private List<OrderPromotion> orderPromotions;
-
     @OneToOne(mappedBy = "order", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     private PrescriptionOrder prescriptionOrder;
 
-    public Order(User user, String orderCode, LocalDateTime orderDate, BigDecimal subTotal,
-                 BigDecimal taxAmount, BigDecimal discountAmount, String orderType, String orderStatus) {
-        this.user = user;
-        this.orderCode = orderCode;
-        this.orderDate = orderDate;
-        this.subTotal = subTotal;
-        this.taxAmount = taxAmount;
-        this.discountAmount = discountAmount;
-        this.orderType = orderType;
-        this.orderStatus = orderStatus;
+    @OneToOne(mappedBy = "order", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    private ShippingInfo shippingInfo; // NEW
+
+    @PrePersist
+    public void prePersist() {
+        if (orderDate == null) orderDate = LocalDateTime.now();
+        if (taxAmount == null) taxAmount = BigDecimal.ZERO;
+        if (discountAmount == null) discountAmount = BigDecimal.ZERO;
+        if (shippingFee == null) shippingFee = BigDecimal.ZERO;
     }
 }
