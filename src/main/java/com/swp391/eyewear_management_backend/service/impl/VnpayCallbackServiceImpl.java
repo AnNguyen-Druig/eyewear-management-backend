@@ -14,11 +14,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class VnpayCallbackServiceImpl implements VnpayCallbackService {
+    private static final ZoneId APP_ZONE_ID = ZoneId.of("Asia/Ho_Chi_Minh");
 
     private final PaymentRepo paymentRepo;
     private final OrderRepo orderRepo;
@@ -54,7 +56,7 @@ public class VnpayCallbackServiceImpl implements VnpayCallbackService {
 
         boolean success = "00".equals(vnpResponseCode); // VNPAY: 00 = success :contentReference[oaicite:3]{index=3}
 
-        payment.setPaymentDate(LocalDateTime.now());
+        payment.setPaymentDate(LocalDateTime.now(APP_ZONE_ID));
         payment.setStatus(success ? "SUCCESS" : "FAILED");
         paymentRepo.save(payment);
 

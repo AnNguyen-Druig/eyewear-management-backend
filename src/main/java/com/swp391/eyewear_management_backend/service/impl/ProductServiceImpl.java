@@ -165,11 +165,9 @@ public class ProductServiceImpl implements ProductService {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm với ID: " + id));
 
-        // 2. Thực hiện xóa
-        // LƯU Ý: Với hệ thống thực tế (đặc biệt có liên quan đến hóa đơn/đơn hàng),
-        // bạn nên dùng Soft Delete (đổi trạng thái isDeleted = true) thay vì Hard Delete.
-        // Dưới đây là ví dụ Hard Delete:
-        productRepository.delete(product);
+        // 2. Soft delete: Đặt isActive thành false thay vì xóa thật
+        product.setIsActive(false);
+        productRepository.save(product);
     }
 
 }

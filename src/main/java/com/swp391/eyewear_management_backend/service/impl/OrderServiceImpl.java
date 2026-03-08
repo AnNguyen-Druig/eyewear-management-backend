@@ -22,12 +22,14 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class OrderServiceImpl implements OrderService {
+    private static final ZoneId APP_ZONE_ID = ZoneId.of("Asia/Ho_Chi_Minh");
 
     private final UserRepo userRepo;
     private final CartItemRepo cartItemRepo;
@@ -128,7 +130,7 @@ public class OrderServiceImpl implements OrderService {
         Order order = new Order();
         order.setUser(user);
         order.setOrderCode(generateOrderCode());
-        order.setOrderDate(LocalDateTime.now());
+        order.setOrderDate(now());
 
         order.setSubTotal(preview.getSubTotal());
         order.setTaxAmount(BigDecimal.ZERO);
@@ -163,7 +165,7 @@ public class OrderServiceImpl implements OrderService {
             PrescriptionOrder rxOrder = new PrescriptionOrder();
             rxOrder.setOrder(savedOrder);
             rxOrder.setUser(user);
-            rxOrder.setPrescriptionDate(LocalDateTime.now());
+            rxOrder.setPrescriptionDate(now());
             savedRxOrder = prescriptionOrderRepo.save(rxOrder);
         }
 
@@ -196,6 +198,9 @@ public class OrderServiceImpl implements OrderService {
                 }
 
                 CartItemPrescription rx = rxMap.get(ci.getCartItemId());
+                if (rx == null || !hasPdData(rx)) {
+                    throw new AppException(ErrorCode.INVALID_REQUEST);
+                }
 
                 int qty = li.getQuantity() == null ? 1 : li.getQuantity();
                 BigDecimal lineDiscount = li.getLineDiscount() == null ? BigDecimal.ZERO : li.getLineDiscount();
@@ -217,6 +222,9 @@ public class OrderServiceImpl implements OrderService {
                         pod.setLeftEyeSph(toBd(rx.getLeftEyeSph()));
                         pod.setLeftEyeCyl(toBd(rx.getLeftEyeCyl()));
                         pod.setLeftEyeAxis(rx.getLeftEyeAxis());
+                        pod.setPd(toBd(rx.getPd()));
+                        pod.setPdRight(toBd(rx.getPdRight()));
+                        pod.setPdLeft(toBd(rx.getPdLeft()));
                     }
 
                     // Sub_Total = unitPrice - perUnitDiscount (net per unit)
@@ -262,7 +270,7 @@ public class OrderServiceImpl implements OrderService {
         // 10) INSERT Invoice
         Invoice invoice = new Invoice();
         invoice.setOrder(savedOrder);
-        invoice.setIssueDate(LocalDateTime.now());
+        invoice.setIssueDate(now());
         invoice.setTotalAmount(preview.getTotalAmount());
         invoice.setStatus("UNPAID");
         invoiceRepo.save(invoice);
@@ -274,8 +282,8 @@ public class OrderServiceImpl implements OrderService {
             Payment dep = Payment.builder()
                     .order(savedOrder)
                     .paymentPurpose("DEPOSIT")
-                    .createdAt(LocalDateTime.now())
-                    .paymentDate(null)
+                    .createdAt(now())
+                    .paymentDate(now())
                     .paymentMethod(plan.depositMethod)
                     .amount(plan.depositAmount)
                     .status("PENDING")
@@ -287,7 +295,7 @@ public class OrderServiceImpl implements OrderService {
             Payment rem = Payment.builder()
                     .order(savedOrder)
                     .paymentPurpose("REMAINING")
-                    .createdAt(LocalDateTime.now())
+                    .createdAt(now())
                     .paymentDate(null)
                     .paymentMethod("COD")
                     .amount(plan.remainingAmount)
@@ -299,7 +307,7 @@ public class OrderServiceImpl implements OrderService {
             Payment full = Payment.builder()
                     .order(savedOrder)
                     .paymentPurpose("FULL")
-                    .createdAt(LocalDateTime.now())
+                    .createdAt(now())
                     .paymentDate(null)
                     .paymentMethod(plan.fullMethod)
                     .amount(plan.fullAmount)
@@ -334,11 +342,7 @@ public class OrderServiceImpl implements OrderService {
 //        }
             //Cách 2: Lúc người dùng chuyển qua paymentUrl lúc chưa thanh toán thì Item đã bị xóa khỏi Cart_Item
             // --> Nên fix cách 1 và sử dụng cách 1 (hiện tại dùng đỡ cách 2)
-        var managedCartItems = cartItemRepo.findByCartItemIdIn(ids);
-        if (managedCartItems.size() != ids.size()) {
-            throw new AppException(ErrorCode.INVALID_REQUEST);
-        }
-        cartItemRepo.deleteAll(managedCartItems);
+        cartItemRepo.deleteAll(cartItems);
 
         // 14) nếu cần online redirect => tạo paymentUrl theo paymentMethod
         String paymentUrl = null;
@@ -348,24 +352,19 @@ public class OrderServiceImpl implements OrderService {
         if (createdPayment != null) {
             String method = createdPayment.getPaymentMethod();
             if (method != null && !"COD".equalsIgnoreCase(method)) {
-                redirect = true;
                 paymentId = createdPayment.getPaymentID();
-
-                // amount dùng để tạo link (BigDecimal)
-                BigDecimal payAmount = createdPayment.getAmount();
-
-                // tạo đúng URL theo method: VNPAY / PAYOS / MOMO
-                paymentUrl = paymentGatewayService.createPaymentUrl(
-                        method,
-                        savedOrder.getOrderID(),
-                        paymentId,
-                        payAmount
-                );
-
-                // nếu method MOMO chưa hỗ trợ, bạn có thể trả null hoặc throw lỗi
-                if (paymentUrl == null) {
-                    throw new AppException(ErrorCode.PAYMENT_METHOD_NOT_SUPPORTED);
+                try {
+                    BigDecimal payAmount = createdPayment.getAmount();
+                    paymentUrl = paymentGatewayService.createPaymentUrl(
+                            method,
+                            savedOrder.getOrderID(),
+                            paymentId,
+                            payAmount
+                    );
+                } catch (RuntimeException ex) {
+                    paymentUrl = null;
                 }
+                redirect = paymentUrl != null;
             }
         }
 
@@ -500,7 +499,7 @@ public class OrderServiceImpl implements OrderService {
     }
 
     private String generateOrderCode() {
-        return "ORD-" + LocalDateTime.now().toLocalDate() + "-" +
+        return "ORD-" + now().toLocalDate() + "-" +
                 UUID.randomUUID().toString().substring(0, 8).toUpperCase();
     }
 
@@ -574,8 +573,19 @@ public class OrderServiceImpl implements OrderService {
 
     private BigDecimal toBd(Double v) {
         if (v == null) return null;
-
-        // tránh sai số double: dùng String để tạo BigDecimal
         return new BigDecimal(String.valueOf(v)).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal toPdBd(Double v) {
+        if (v == null) return null;
+        return new BigDecimal(String.valueOf(v)).setScale(1, RoundingMode.HALF_UP);
+    }
+
+    private boolean hasPdData(CartItemPrescription rx) {
+        return rx.getPd() != null || (rx.getPdRight() != null && rx.getPdLeft() != null);
+    }
+
+    private LocalDateTime now() {
+        return LocalDateTime.now(APP_ZONE_ID);
     }
 }

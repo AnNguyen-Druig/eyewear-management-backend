@@ -1,5 +1,6 @@
 package com.swp391.eyewear_management_backend.dto.request;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.DecimalMin;
@@ -31,28 +32,21 @@ public class CartItemRequest {
     Double price;
 
     // Prescription fields (optional) - liên kết với bảng Cart_Item_Prescription
-    @DecimalMin(value = "0.0")
     Double rightEyeSph;
-    @DecimalMin(value = "0.0")
     Double rightEyeCyl;
-    @DecimalMin(value = "0.0")
     Integer rightEyeAxis;
-    @DecimalMin(value = "0.0")
     Double rightEyeAdd;
-    @DecimalMin(value = "0.0")
+
     Double leftEyeSph;
-    @DecimalMin(value = "0.0")
     Double leftEyeCyl;
-    @DecimalMin(value = "0.0")
     Integer leftEyeAxis;
-    @DecimalMin(value = "0.0")
     Double leftEyeAdd;
 
     // Pupillary Distance
-    @DecimalMin(value = "30.0")
+    @JsonAlias({"PD", "Pd", "pD"})
     Double pd;
-    @DecimalMin(value = "30.0")
+    @JsonAlias({"PD_Right", "PDRight", "pd_right", "rightPD", "rightPd", "pdright", "PD_RIGHT"})
     Double pdRight;
-    @DecimalMin(value = "30.0")
+    @JsonAlias({"PD_Left", "PDLeft", "pd_left", "leftPD", "leftPd", "pdleft", "PD_LEFT"})
     Double pdLeft;
 }

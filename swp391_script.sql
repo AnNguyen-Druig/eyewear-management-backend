@@ -541,6 +541,9 @@ CREATE TABLE Prescription_Order_Detail (
                                            Left_Eye_Sph DECIMAL(5,2) NULL,
                                            Left_Eye_Cyl DECIMAL(5,2) NULL,
                                            Left_Eye_Axis INT NULL,
+                                           PD DECIMAL(4,1) NULL,
+                                           PD_Right DECIMAL(4,1) NULL,
+                                           PD_Left DECIMAL(4,1) NULL,
 
                                            Sub_Total DECIMAL(15,2) NOT NULL,
 

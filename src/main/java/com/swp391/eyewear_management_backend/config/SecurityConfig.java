@@ -53,7 +53,8 @@ public class SecurityConfig {
             "/auth/introspect",
             "/auth/logout",
             "/auth/refresh",
-            "/api/payment/payos-webhook"
+            "/api/payment/payos-webhook",
+            "/api/prescriptions/parse-image"
     };
 
     @Autowired
