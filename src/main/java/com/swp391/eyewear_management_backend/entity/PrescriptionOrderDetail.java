@@ -1,10 +1,7 @@
 package com.swp391.eyewear_management_backend.entity;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.NoArgsConstructor;
-import lombok.ToString;
+import lombok.*;
 
 import java.math.BigDecimal;
 
@@ -13,6 +10,7 @@ import java.math.BigDecimal;
 @Getter
 @Setter
 @NoArgsConstructor
+@AllArgsConstructor
 @ToString(exclude = {"prescriptionOrder", "frame", "lens"})
 public class PrescriptionOrderDetail {
 
@@ -57,22 +55,15 @@ public class PrescriptionOrderDetail {
     @Column(name = "Left_Eye_Axis")
     private Integer leftEyeAxis;
 
+    @Column(name = "PD", columnDefinition = "DECIMAL(4,1)")
+    private BigDecimal pd;
+
+    @Column(name = "PD_Right", columnDefinition = "DECIMAL(4,1)")
+    private BigDecimal pdRight;
+
+    @Column(name = "PD_Left", columnDefinition = "DECIMAL(4,1)")
+    private BigDecimal pdLeft;
+
     @Column(name = "Sub_Total", nullable = false, precision = 15, scale = 2)
     private BigDecimal subTotal;
-
-    public PrescriptionOrderDetail(PrescriptionOrder prescriptionOrder, Frame frame, Lens lens,
-                                   BigDecimal rightEyeSph, BigDecimal rightEyeCyl, Integer rightEyeAxis,
-                                   BigDecimal leftEyeSph, BigDecimal leftEyeCyl, Integer leftEyeAxis,
-                                   BigDecimal subTotal) {
-        this.prescriptionOrder = prescriptionOrder;
-        this.frame = frame;
-        this.lens = lens;
-        this.rightEyeSph = rightEyeSph;
-        this.rightEyeCyl = rightEyeCyl;
-        this.rightEyeAxis = rightEyeAxis;
-        this.leftEyeSph = leftEyeSph;
-        this.leftEyeCyl = leftEyeCyl;
-        this.leftEyeAxis = leftEyeAxis;
-        this.subTotal = subTotal;
-    }
 }

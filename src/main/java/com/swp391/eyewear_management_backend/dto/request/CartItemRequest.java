@@ -1,5 +1,6 @@
 package com.swp391.eyewear_management_backend.dto.request;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.DecimalMin;
@@ -42,7 +43,10 @@ public class CartItemRequest {
     Double leftEyeAdd;
 
     // Pupillary Distance
+    @JsonAlias({"PD", "Pd", "pD"})
     Double pd;
+    @JsonAlias({"PD_Right", "PDRight", "pd_right", "rightPD", "rightPd", "pdright", "PD_RIGHT"})
     Double pdRight;
+    @JsonAlias({"PD_Left", "PDLeft", "pd_left", "leftPD", "leftPd", "pdleft", "PD_LEFT"})
     Double pdLeft;
 }

@@ -210,9 +210,11 @@ public class StaffOrderServiceImpl implements StaffOrderService {
             String rightSph = bdToText(detail.getRightEyeSph());
             String rightCyl = bdToText(detail.getRightEyeCyl());
             String rightAxis = detail.getRightEyeAxis() == null ? null : String.valueOf(detail.getRightEyeAxis());
+            String rightPD = bdToText(detail.getPdRight());
             String leftSph = bdToText(detail.getLeftEyeSph());
             String leftCyl = bdToText(detail.getLeftEyeCyl());
             String leftAxis = detail.getLeftEyeAxis() == null ? null : String.valueOf(detail.getLeftEyeAxis());
+            String leftPD = bdToText(detail.getPdLeft());
 
             Long frameId = detail.getFrame() != null ? detail.getFrame().getFrameID() : null;
             Long lensId = detail.getLens() != null ? detail.getLens().getLensID() : null;
@@ -231,9 +233,11 @@ public class StaffOrderServiceImpl implements StaffOrderService {
                     rightSph,
                     rightCyl,
                     rightAxis,
+                    rightPD,
                     leftSph,
                     leftCyl,
                     leftAxis,
+                    leftPD,
                     bdToText(lineTotal)
             );
 
@@ -254,9 +258,11 @@ public class StaffOrderServiceImpl implements StaffOrderService {
                             .rightEyeSph(rightSph)
                             .rightEyeCyl(rightCyl)
                             .rightEyeAxis(rightAxis)
+                            .rightPD(rightPD)
                             .leftEyeSph(leftSph)
                             .leftEyeCyl(leftCyl)
                             .leftEyeAxis(leftAxis)
+                            .leftPD(leftPD)
                             .quantity(0)
                             .totalPrice(BigDecimal.ZERO)
                             .build()
@@ -459,9 +465,11 @@ public class StaffOrderServiceImpl implements StaffOrderService {
             String rightEyeSph,
             String rightEyeCyl,
             String rightEyeAxis,
+            String rightPD,
             String leftEyeSph,
             String leftEyeCyl,
             String leftEyeAxis,
+            String leftPD,
             String lineSubTotal
     ) {
     }
