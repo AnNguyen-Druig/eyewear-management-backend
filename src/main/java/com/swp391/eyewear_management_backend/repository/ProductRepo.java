@@ -13,6 +13,7 @@ import java.util.List;
 
 public interface ProductRepo extends JpaRepository<Product,Long> {
     @Query("SELECT p FROM Product p WHERE " +
+            "p.isActive = true AND " +
             "(:name IS NULL OR p.productName LIKE %:name%) AND " +
             "(:minPrice IS NULL OR p.price >= :minPrice) AND " +
             "(:maxPrice IS NULL OR p.price <= :maxPrice) AND " +
@@ -22,7 +23,7 @@ public interface ProductRepo extends JpaRepository<Product,Long> {
                                  @Param("maxPrice") Double maxPrice,
                                  @Param("category") String brand);
 
-    @Query("SELECT p FROM Product p WHERE p.productType.typeName = :typeName AND p.productID <> :excludeId ORDER BY p.productID DESC")
+    @Query("SELECT p FROM Product p WHERE p.isActive = true AND p.productType.typeName = :typeName AND p.productID <> :excludeId ORDER BY p.productID DESC")
     List<Product> findByProductTypeNameExcludingId(@Param("typeName") String typeName, 
                                                      @Param("excludeId") Long excludeId);
 

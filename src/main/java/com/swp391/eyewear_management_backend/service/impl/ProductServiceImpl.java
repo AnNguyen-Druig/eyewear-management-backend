@@ -165,17 +165,9 @@ public class ProductServiceImpl implements ProductService {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm với ID: " + id));
 
-        // 2. Kiểm tra xem product có đang được sử dụng trong order không
-        if (product.getOrderDetails() != null && !product.getOrderDetails().isEmpty()) {
-            throw new RuntimeException("Không thể xóa sản phẩm này vì đã có trong đơn hàng. " +
-                    "Sản phẩm có " + product.getOrderDetails().size() + " đơn hàng liên quan.");
-        }
-
-        // 3. Xóa các liên kết còn lại (Frame, Lens, ContactLens) nếu có
-        // Các images và inventories sẽ tự động xóa do orphanRemoval = true
-        
-        // 4. Thực hiện xóa product
-        productRepository.delete(product);
+        // 2. Soft delete: Đặt isActive thành false thay vì xóa thật
+        product.setIsActive(false);
+        productRepository.save(product);
     }
 
 }

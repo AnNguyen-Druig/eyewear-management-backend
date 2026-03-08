@@ -6,6 +6,7 @@ import com.swp391.eyewear_management_backend.dto.response.ProductResponse;
 import com.swp391.eyewear_management_backend.service.ProductService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -33,12 +34,14 @@ public class ProductController {
     }
 
     @PutMapping()
+    @PreAuthorize("hasAnyAuthority('ROLE_SALES STAFF','ROLE_ADMIN','ROLE_MANAGER')")
     public ResponseEntity<ProductResponse> updateProduct(
             @RequestBody ProductUpdateRequest request) {
         return ResponseEntity.ok(productService.updateProduct(request));
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyAuthority('ROLE_SALES STAFF','ROLE_ADMIN','ROLE_MANAGER')")
     public ResponseEntity<Void> deleteProduct(@PathVariable Long id) {
         productService.deleteProduct(id);
         // Trả về 204 No Content là chuẩn RESTful cho hành động xóa thành công
