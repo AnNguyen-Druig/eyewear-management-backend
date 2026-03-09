@@ -16,6 +16,7 @@ public class ProductResponse {
     private String description;
     private Double price;
     private Boolean allowPreorder;
+    private Boolean isActive;
     private String Image_URL;
     private String Brand;
     private String Product_Type;

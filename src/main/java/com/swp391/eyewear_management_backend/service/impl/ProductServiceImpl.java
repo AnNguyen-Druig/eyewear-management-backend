@@ -124,6 +124,7 @@ public class ProductServiceImpl implements ProductService {
         if (request.getSku() != null) product.setSKU(request.getSku());
         if (request.getPrice() != null) product.setPrice(BigDecimal.valueOf(request.getPrice()));
         if (request.getDescription() != null) product.setDescription(request.getDescription());
+        if (request.getIsActive() != null) product.setIsActive(request.getIsActive());
 
         // 3. Xử lý Brand (Thương hiệu)
         if (request.getBrandName() != null && !request.getBrandName().trim().isEmpty()) {
