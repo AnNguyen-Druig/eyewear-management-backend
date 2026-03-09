@@ -9,6 +9,7 @@ public class ProductUpdateRequest {
     private String name;
     private Double price;
     private String description;
+    private Boolean isActive;
 
     // Nhận tên thay vì ID
     private String brandName;
