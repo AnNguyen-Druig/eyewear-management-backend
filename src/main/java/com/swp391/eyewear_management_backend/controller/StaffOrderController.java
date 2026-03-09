@@ -69,4 +69,24 @@ public class StaffOrderController {
                 .result(result)
                 .build();
     }
+
+    @PutMapping("/{orderId}/confirm")
+    public ApiResponse<StaffOrderDetailResponse> confirmOrder(@PathVariable Long orderId) {
+        StaffOrderDetailResponse result = staffOrderService.confirmOrderForSalesStaff(orderId);
+        return ApiResponse.<StaffOrderDetailResponse>builder()
+                .message("OK")
+                .result(result)
+                .build();
+    }
+
+    //Hàm này dùng để lấy danh sách đơn hàng có yêu cầu đổi trả cho SALES STAFF
+    @GetMapping("/return-exchange")
+//    @PreAuthorize("hasAnyAuthority('ROLE_SALES STAFF','ROLE_ADMIN','ROLE_MANAGER')")
+    public ApiResponse<List<StaffOrderListResponse>> getReturnExchangeOrders() {
+        List<StaffOrderListResponse> result = staffOrderService.getReturnExchangeOrders();
+        return ApiResponse.<List<StaffOrderListResponse>>builder()
+                .message("OK")
+                .result(result)
+                .build();
+    }
 }

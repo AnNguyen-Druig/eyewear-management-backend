@@ -13,6 +13,9 @@ public interface StaffOrderService {
     Page<StaffOrderListResponse> searchOrdersForStaff(StaffOrderSearchRequest request);
     Page<StaffOrderListResponse> searchOrdersForOperationStaff(StaffOrderSearchRequest request);
     StaffOrderDetailResponse getOrderDetailForSalesStaff(Long orderId);
+    StaffOrderDetailResponse getOrderDetailForOperationStaff(Long orderId);
+    StaffOrderDetailResponse confirmOrderForSalesStaff(Long orderId);
     List<OrderStatusGroupResponse> getSalesStaffOrderStatuses();
     List<OrderStatusGroupResponse> getOperationStaffOrderStatuses();
+    List<StaffOrderListResponse> getReturnExchangeOrders();
 }
