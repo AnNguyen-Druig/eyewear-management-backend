@@ -1,5 +1,6 @@
 package com.swp391.eyewear_management_backend.controller;
 
+import com.swp391.eyewear_management_backend.dto.request.ProductCreateRequest;
 import com.swp391.eyewear_management_backend.dto.request.ProductUpdateRequest;
 import com.swp391.eyewear_management_backend.dto.response.ProductDetailResponse;
 import com.swp391.eyewear_management_backend.dto.response.ProductResponse;
@@ -8,7 +9,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.List;
 @RestController
 @RequestMapping("/api/products")
@@ -31,6 +34,14 @@ public class ProductController {
     @GetMapping("/{id}")
     public ResponseEntity<ProductDetailResponse> getProduct(@PathVariable Long id) {
         return ResponseEntity.ok(productService.getProductById(id));
+    }
+
+    @PostMapping()
+    @PreAuthorize("hasAnyAuthority('ROLE_SALES STAFF','ROLE_ADMIN','ROLE_MANAGER')")
+    public ResponseEntity<ProductResponse> createProduct(
+            @ModelAttribute ProductCreateRequest request,
+            @RequestParam(value = "imageFiles", required = false) List<MultipartFile> imageFiles) throws IOException {
+        return ResponseEntity.ok(productService.createProduct(request, imageFiles));
     }
 
     @PutMapping()

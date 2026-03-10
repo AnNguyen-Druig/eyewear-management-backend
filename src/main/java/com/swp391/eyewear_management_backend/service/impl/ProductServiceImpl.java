@@ -1,5 +1,6 @@
 package com.swp391.eyewear_management_backend.service.impl;
 
+import com.swp391.eyewear_management_backend.dto.request.ProductCreateRequest;
 import com.swp391.eyewear_management_backend.dto.request.ProductUpdateRequest;
 import com.swp391.eyewear_management_backend.dto.response.ProductDetailResponse;
 import com.swp391.eyewear_management_backend.dto.response.ProductResponse;
@@ -8,14 +9,21 @@ import com.swp391.eyewear_management_backend.dto.response.extend.FrameResponse;
 import com.swp391.eyewear_management_backend.dto.response.extend.LensResponse;
 import com.swp391.eyewear_management_backend.entity.Brand;
 import com.swp391.eyewear_management_backend.entity.Product;
+import com.swp391.eyewear_management_backend.entity.ProductImage;
 import com.swp391.eyewear_management_backend.entity.ProductType;
+import com.swp391.eyewear_management_backend.exception.AppException;
+import com.swp391.eyewear_management_backend.exception.ErrorCode;
 import com.swp391.eyewear_management_backend.mapper.ProductMapper;
 import com.swp391.eyewear_management_backend.repository.BrandRepo;
+import com.swp391.eyewear_management_backend.repository.ProductImageRepo;
 import com.swp391.eyewear_management_backend.repository.ProductRepo;
 import com.swp391.eyewear_management_backend.repository.ProductTypeRepo;
+import com.swp391.eyewear_management_backend.service.ImageUploadService;
 import com.swp391.eyewear_management_backend.service.ProductService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -33,6 +41,12 @@ public class ProductServiceImpl implements ProductService {
 
     @Autowired
     private ProductTypeRepo productTypeRepository;
+
+    @Autowired
+    private ProductImageRepo productImageRepository;
+
+    @Autowired
+    private ImageUploadService imageUploadService;
 
     @Autowired
     private ProductMapper productMapper;
@@ -110,6 +124,81 @@ public class ProductServiceImpl implements ProductService {
         response.setRelatedContactLenses(relatedContactLenses.stream()
                 .map(productMapper::toProductResponse)
                 .collect(Collectors.toList()));
+    }
+
+    @Override
+    @PreAuthorize("hasAnyAuthority('ROLE_SALES STAFF','ROLE_ADMIN','ROLE_MANAGER')")
+    public ProductResponse createProduct(ProductCreateRequest request, List<MultipartFile> imageFiles) throws IOException {
+        // 1. Kiểm tra SKU bắt buộc phải nhập
+        if (request.getSku() == null || request.getSku().trim().isEmpty()) {
+            throw new AppException(ErrorCode.SKU_REQUIRED);
+        }
+        
+        // 2. Kiểm tra SKU đã tồn tại chưa
+        String skuInput = request.getSku().trim();
+        if (productRepository.existsBySKU(skuInput)) {
+            throw new AppException(ErrorCode.SKU_ALREADY_EXISTS);
+        }
+        
+        // 3. Tạo product mới
+        Product product = new Product();
+        
+        // 4. Set thông tin cơ bản
+        product.setProductName(request.getName());
+        product.setSKU(request.getSku());
+        product.setPrice(BigDecimal.valueOf(request.getPrice()));
+        product.setCostPrice(request.getCostPrice() != null ? 
+                BigDecimal.valueOf(request.getCostPrice()) : BigDecimal.valueOf(request.getPrice()));
+        product.setDescription(request.getDescription());
+        product.setAllowPreorder(request.getAllowPreorder() != null ? request.getAllowPreorder() : false);
+        product.setIsActive(request.getIsActive() != null ? request.getIsActive() : true);
+        
+        // 5. Xử lý Brand (Thương hiệu) - Tìm hoặc tạo mới
+        if (request.getBrandName() == null || request.getBrandName().trim().isEmpty()) {
+            throw new RuntimeException("Tên thương hiệu không được để trống");
+        }
+        String brandNameInput = request.getBrandName().trim();
+        Brand brand = brandRepository.findByBrandName(brandNameInput)
+                .orElseGet(() -> {
+                    Brand newBrand = new Brand();
+                    newBrand.setBrandName(brandNameInput);
+                    newBrand.setStatus(true);
+                    return brandRepository.save(newBrand);
+                });
+        product.setBrand(brand);
+        
+        // 6. Xử lý Product Type (Loại sản phẩm) - Tìm hoặc tạo mới
+        if (request.getTypeName() == null || request.getTypeName().trim().isEmpty()) {
+            throw new RuntimeException("Loại sản phẩm không được để trống");
+        }
+        String typeNameInput = request.getTypeName().trim();
+        ProductType type = productTypeRepository.findByTypeName(typeNameInput)
+                .orElseGet(() -> {
+                    ProductType newType = new ProductType();
+                    newType.setTypeName(typeNameInput);
+                    return productTypeRepository.save(newType);
+                });
+        product.setProductType(type);
+        
+        // 7. Lưu product
+        Product savedProduct = productRepository.save(product);
+        
+        // 8. Xử lý upload nhiều ảnh nếu có
+        if (imageFiles != null && !imageFiles.isEmpty()) {
+            for (int i = 0; i < imageFiles.size(); i++) {
+                MultipartFile file = imageFiles.get(i);
+                if (file != null && !file.isEmpty()) {
+                    String imageUrl = imageUploadService.uploadImage(file);
+                    // Ảnh đầu tiên sẽ là ảnh đại diện (isAvatar = true)
+                    boolean isAvatar = (i == 0);
+                    ProductImage productImage = new ProductImage(savedProduct, imageUrl, isAvatar);
+                    productImageRepository.save(productImage);
+                }
+            }
+        }
+        
+        // 9. Trả về response
+        return productMapper.toProductResponse(savedProduct);
     }
 
     @Override

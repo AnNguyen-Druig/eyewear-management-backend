@@ -27,4 +27,6 @@ public interface ProductRepo extends JpaRepository<Product,Long> {
     List<Product> findByProductTypeNameExcludingId(@Param("typeName") String typeName, 
                                                      @Param("excludeId") Long excludeId);
 
+    boolean existsBySKU(String sku);
+
 }
