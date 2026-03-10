@@ -79,9 +79,9 @@ public class UserController {
 //        return userServiceImpl.updateUser(userId, request);
 //    }
 @PreAuthorize("hasAnyAuthority('ROLE_SALES STAFF','ROLE_ADMIN','ROLE_MANAGER')") // Chặn ngay từ Controller cho an toàn
-    @DeleteMapping("/{userId}")
-    public String deleteUserById(@PathVariable Long userId) {
-        userService.deleteUserById(userId);
+    @DeleteMapping("/{username}")
+    public String deleteUserByName(@PathVariable String username) {
+        userService.deleteUserByName(username);
         return "User has been deleted";
     }
 

@@ -31,7 +31,7 @@ public interface UserService {
     UserRespone getUserById(Long id);
 
     // DELETE
-    void deleteUserById(Long id);
+    void deleteUserByName(String username);
 
     // (Optional) nếu bạn vẫn muốn giữ method này
     User findByName(String userName);

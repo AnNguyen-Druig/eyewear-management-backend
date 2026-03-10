@@ -195,8 +195,8 @@ public class UserServiceImpl implements UserService {
 //        return userMapper.toUserRespone(userRepo.save(user));
 //    }
 
-    public void deleteUserById(Long id) {
-        User user = userRepo.findById(id)
+    public void deleteUserByName(String username) {
+        User user = userRepo.findByUsername(username)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
         user.setStatus(false);
         userRepo.save(user);
