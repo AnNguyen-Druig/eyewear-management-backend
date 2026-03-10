@@ -60,6 +60,14 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
+    public List<ProductResponse> searchProductsByAdmin(String name, Double minPrice, Double maxPrice, String brand) {
+        List<Product> products = productRepository.searchProductsOfAdmin(name, minPrice, maxPrice, brand);
+        return products.stream()
+                .map(productMapper::toProductResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public ProductDetailResponse getProductById(Long id) {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Not found"));

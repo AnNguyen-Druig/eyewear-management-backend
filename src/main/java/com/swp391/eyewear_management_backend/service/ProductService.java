@@ -11,7 +11,7 @@ import java.util.List;
 
 public interface ProductService {
     public List<ProductResponse> searchProducts(String productName, Double minPrice, Double maxPrice, String brand);
-
+    public List<ProductResponse> searchProductsByAdmin(String productName, Double minPrice, Double maxPrice, String brand);
     public ProductDetailResponse getProductById(Long id);
 
     ProductResponse createProduct(ProductCreateRequest request, List<MultipartFile> imageFiles) throws IOException;

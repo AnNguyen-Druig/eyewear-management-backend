@@ -31,6 +31,17 @@ public class ProductController {
         return ResponseEntity.ok(result);
     }
 
+    @GetMapping("/admin/search")
+    public ResponseEntity<List<ProductResponse>> searchProductsAdmin(
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) Double minPrice,
+            @RequestParam(required = false) Double maxPrice,
+            @RequestParam(required = false) String brand) {
+
+        List<ProductResponse> result = productService.searchProductsByAdmin(name, minPrice, maxPrice, brand);
+        return ResponseEntity.ok(result);
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<ProductDetailResponse> getProduct(@PathVariable Long id) {
         return ResponseEntity.ok(productService.getProductById(id));
