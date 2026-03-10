@@ -23,6 +23,17 @@ public interface ProductRepo extends JpaRepository<Product,Long> {
                                  @Param("maxPrice") Double maxPrice,
                                  @Param("category") String brand);
 
+
+    @Query("SELECT p FROM Product p WHERE " +
+            "(:name IS NULL OR p.productName LIKE %:name%) AND " +
+            "(:minPrice IS NULL OR p.price >= :minPrice) AND " +
+            "(:maxPrice IS NULL OR p.price <= :maxPrice) AND " +
+            "(:category IS NULL OR p.brand.brandName LIKE %:category%)")
+    List<Product> searchProductsOfAdmin(@Param("name") String productName,
+                                 @Param("minPrice") Double minPrice,
+                                 @Param("maxPrice") Double maxPrice,
+                                 @Param("category") String brand);
+
     @Query("SELECT p FROM Product p WHERE p.isActive = true AND p.productType.typeName = :typeName AND p.productID <> :excludeId ORDER BY p.productID DESC")
     List<Product> findByProductTypeNameExcludingId(@Param("typeName") String typeName, 
                                                      @Param("excludeId") Long excludeId);

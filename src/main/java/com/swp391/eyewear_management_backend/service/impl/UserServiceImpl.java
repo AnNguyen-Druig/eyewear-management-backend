@@ -68,7 +68,6 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    @PreAuthorize("hasRole('ADMIN')")
     public UserRespone createUserByAdmin(AdminCreateUserRequest request) {
         log.info("Admin is creating a new user with username: {}", request.getUsername());
 
@@ -196,8 +195,8 @@ public class UserServiceImpl implements UserService {
 //        return userMapper.toUserRespone(userRepo.save(user));
 //    }
 
-    public void deleteUserById(Long id) {
-        User user = userRepo.findById(id)
+    public void deleteUserByName(String username) {
+        User user = userRepo.findByUsername(username)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
         user.setStatus(false);
         userRepo.save(user);
