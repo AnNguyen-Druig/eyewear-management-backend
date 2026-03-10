@@ -8,6 +8,10 @@ import com.swp391.eyewear_management_backend.dto.response.extend.ContactLensResp
 import com.swp391.eyewear_management_backend.dto.response.extend.FrameResponse;
 import com.swp391.eyewear_management_backend.dto.response.extend.LensResponse;
 import com.swp391.eyewear_management_backend.entity.Brand;
+import com.swp391.eyewear_management_backend.entity.ContactLens;
+import com.swp391.eyewear_management_backend.entity.Frame;
+import com.swp391.eyewear_management_backend.entity.Lens;
+import com.swp391.eyewear_management_backend.entity.LensType;
 import com.swp391.eyewear_management_backend.entity.Product;
 import com.swp391.eyewear_management_backend.entity.ProductImage;
 import com.swp391.eyewear_management_backend.entity.ProductType;
@@ -15,6 +19,10 @@ import com.swp391.eyewear_management_backend.exception.AppException;
 import com.swp391.eyewear_management_backend.exception.ErrorCode;
 import com.swp391.eyewear_management_backend.mapper.ProductMapper;
 import com.swp391.eyewear_management_backend.repository.BrandRepo;
+import com.swp391.eyewear_management_backend.repository.ContactLensRepo;
+import com.swp391.eyewear_management_backend.repository.FrameRepo;
+import com.swp391.eyewear_management_backend.repository.LensRepo;
+import com.swp391.eyewear_management_backend.repository.LensTypeRepo;
 import com.swp391.eyewear_management_backend.repository.ProductImageRepo;
 import com.swp391.eyewear_management_backend.repository.ProductRepo;
 import com.swp391.eyewear_management_backend.repository.ProductTypeRepo;
@@ -44,6 +52,18 @@ public class ProductServiceImpl implements ProductService {
 
     @Autowired
     private ProductImageRepo productImageRepository;
+
+    @Autowired
+    private FrameRepo frameRepository;
+
+    @Autowired
+    private LensRepo lensRepository;
+
+    @Autowired
+    private ContactLensRepo contactLensRepository;
+
+    @Autowired
+    private LensTypeRepo lensTypeRepository;
 
     @Autowired
     private ImageUploadService imageUploadService;
@@ -175,21 +195,137 @@ public class ProductServiceImpl implements ProductService {
                 });
         product.setBrand(brand);
         
-        // 6. Xử lý Product Type (Loại sản phẩm) - Tìm hoặc tạo mới
+        // 6. Xử lý Product Type (Loại sản phẩm) - Chỉ tìm trong DB, không tạo mới
         if (request.getTypeName() == null || request.getTypeName().trim().isEmpty()) {
             throw new RuntimeException("Loại sản phẩm không được để trống");
         }
         String typeNameInput = request.getTypeName().trim();
         ProductType type = productTypeRepository.findByTypeName(typeNameInput)
-                .orElseGet(() -> {
-                    ProductType newType = new ProductType();
-                    newType.setTypeName(typeNameInput);
-                    return productTypeRepository.save(newType);
-                });
+                .orElseThrow(() -> new RuntimeException("Loại sản phẩm '" + typeNameInput + "' không tồn tại trong hệ thống"));
         product.setProductType(type);
         
         // 7. Lưu product
         Product savedProduct = productRepository.save(product);
+        
+        // 7.1. Kiểm tra loại sản phẩm và lưu vào bảng tương ứng
+        String productTypeName = typeNameInput.trim();
+        
+        if (productTypeName.equalsIgnoreCase("Gọng kính")) {
+            // Validate Frame fields (trừ description)
+            if (request.getFrameColor() == null || request.getFrameColor().trim().isEmpty()) {
+                throw new RuntimeException("Màu sắc gọng kính không được để trống");
+            }
+            if (request.getFrameTempleLength() == null) {
+                throw new RuntimeException("Chiều dài càng gọng kính không được để trống");
+            }
+            if (request.getFrameLensWidth() == null) {
+                throw new RuntimeException("Chiều rộng tròng gọng kính không được để trống");
+            }
+            if (request.getFrameBridgeWidth() == null) {
+                throw new RuntimeException("Chiều rộng cầu mũi gọng kính không được để trống");
+            }
+            if (request.getFrameShapeName() == null || request.getFrameShapeName().trim().isEmpty()) {
+                throw new RuntimeException("Hình dạng gọng kính không được để trống");
+            }
+            if (request.getFrameMaterialName() == null || request.getFrameMaterialName().trim().isEmpty()) {
+                throw new RuntimeException("Chất liệu gọng kính không được để trống");
+            }
+            
+            // Tạo Frame
+            Frame frame = new Frame();
+            frame.setProduct(savedProduct);
+            frame.setColor(request.getFrameColor().trim());
+            frame.setTempleLength(request.getFrameTempleLength());
+            frame.setLensWidth(request.getFrameLensWidth());
+            frame.setBridgeWidth(request.getFrameBridgeWidth());
+            frame.setFrameShapeName(request.getFrameShapeName().trim());
+            frame.setFrameMaterialName(request.getFrameMaterialName().trim());
+            frame.setDescription(request.getFrameDescription());
+            frameRepository.save(frame);
+            
+        } else if (productTypeName.equalsIgnoreCase("Tròng kính")) {
+            // Validate Lens fields (trừ description)
+            if (request.getLensTypeName() == null || request.getLensTypeName().trim().isEmpty()) {
+                throw new RuntimeException("Loại tròng kính không được để trống");
+            }
+            if (request.getLensIndexValue() == null) {
+                throw new RuntimeException("Chỉ số khúc xạ tròng kính không được để trống");
+            }
+            if (request.getLensDiameter() == null) {
+                throw new RuntimeException("Đường kính tròng kính không được để trống");
+            }
+            if (request.getLensAvailablePowerRange() == null || request.getLensAvailablePowerRange().trim().isEmpty()) {
+                throw new RuntimeException("Phạm vi độ tròng kính không được để trống");
+            }
+            if (request.getLensIsBlueLightBlock() == null) {
+                throw new RuntimeException("Thông tin chống ánh sáng xanh của tròng kính không được để trống");
+            }
+            if (request.getLensIsPhotochromic() == null) {
+                throw new RuntimeException("Thông tin đổi màu của tròng kính không được để trống");
+            }
+            
+            // Tạo Lens
+            Lens lens = new Lens();
+            lens.setProduct(savedProduct);
+            
+            // Xử lý LensType - Chỉ tìm trong DB, không tạo mới
+            String lensTypeNameInput = request.getLensTypeName().trim();
+            LensType lensType = lensTypeRepository.findByTypeName(lensTypeNameInput)
+                    .orElseThrow(() -> new RuntimeException("Loại tròng kính '" + lensTypeNameInput + "' không tồn tại trong hệ thống"));
+            lens.setLensType(lensType);
+            
+            lens.setIndexValue(request.getLensIndexValue());
+            lens.setDiameter(request.getLensDiameter());
+            lens.setAvailablePowerRange(request.getLensAvailablePowerRange().trim());
+            lens.setIsBlueLightBlock(request.getLensIsBlueLightBlock());
+            lens.setIsPhotochromic(request.getLensIsPhotochromic());
+            lens.setDescription(request.getLensDescription());
+            lensRepository.save(lens);
+            
+        } else if (productTypeName.equalsIgnoreCase("Kính áp tròng")) {
+            // Validate ContactLens fields (không có description riêng)
+            if (request.getContactLensUsageType() == null || request.getContactLensUsageType().trim().isEmpty()) {
+                throw new RuntimeException("Loại sử dụng kính áp tròng không được để trống");
+            }
+            if (request.getContactLensBaseCurve() == null) {
+                throw new RuntimeException("Độ cong đáy kính áp tròng không được để trống");
+            }
+            if (request.getContactLensDiameter() == null) {
+                throw new RuntimeException("Đường kính kính áp tròng không được để trống");
+            }
+            if (request.getContactLensWaterContent() == null) {
+                throw new RuntimeException("Hàm lượng nước kính áp tròng không được để trống");
+            }
+            if (request.getContactLensAvailablePowerRange() == null || request.getContactLensAvailablePowerRange().trim().isEmpty()) {
+                throw new RuntimeException("Phạm vi độ kính áp tròng không được để trống");
+            }
+            if (request.getContactLensQuantityPerBox() == null) {
+                throw new RuntimeException("Số lượng kính áp tròng trong hộp không được để trống");
+            }
+            if (request.getContactLensMaterial() == null || request.getContactLensMaterial().trim().isEmpty()) {
+                throw new RuntimeException("Chất liệu kính áp tròng không được để trống");
+            }
+            if (request.getContactLensReplacementSchedule() == null || request.getContactLensReplacementSchedule().trim().isEmpty()) {
+                throw new RuntimeException("Lịch thay thế kính áp tròng không được để trống");
+            }
+            if (request.getContactLensColor() == null || request.getContactLensColor().trim().isEmpty()) {
+                throw new RuntimeException("Màu sắc kính áp tròng không được để trống");
+            }
+            
+            // Tạo ContactLens
+            ContactLens contactLens = new ContactLens();
+            contactLens.setProduct(savedProduct);
+            contactLens.setUsageType(request.getContactLensUsageType().trim());
+            contactLens.setBaseCurve(request.getContactLensBaseCurve());
+            contactLens.setDiameter(request.getContactLensDiameter());
+            contactLens.setWaterContent(request.getContactLensWaterContent());
+            contactLens.setAvailablePowerRange(request.getContactLensAvailablePowerRange().trim());
+            contactLens.setQuantityPerBox(request.getContactLensQuantityPerBox());
+            contactLens.setLensMaterial(request.getContactLensMaterial().trim());
+            contactLens.setReplacementSchedule(request.getContactLensReplacementSchedule().trim());
+            contactLens.setColor(request.getContactLensColor().trim());
+            contactLensRepository.save(contactLens);
+        }
         
         // 8. Xử lý upload nhiều ảnh nếu có
         if (imageFiles != null && !imageFiles.isEmpty()) {
