@@ -38,12 +38,15 @@ jwt:
   refreshable-duration: 36000
 
 ghn:
-  base-url: https://online-gateway.ghn.vn/shiip/public-api
-  token: ${GHN_TOKEN:2180ff60-11e5-11f1-bb99-4a6bb163b6a3}
-  shop-id: ${GHN_SHOP_ID:4883785}
+  base-url: https://dev-online-gateway.ghn.vn/shiip/public-api
+  token: 0efba6cc-11e5-11f1-a3d6-dac90fb956b5
+  shop-id: 199403
   from-district-id: ${GHN_FROM_DISTRICT_ID:1451}
   from-ward-code: ${GHN_FROM_WARD_CODE:20904}
   preferred-service-type-id: 2
+  payment-type-id: ${GHN_PAYMENT_TYPE_ID:2}
+  required-note: ${GHN_REQUIRED_NOTE:CHOTHUHANG}
+  cod-max-amount: ${GHN_COD_MAX_AMOUNT:5000000}
 
   # === Package defaults for eyewear ===
   pkg:

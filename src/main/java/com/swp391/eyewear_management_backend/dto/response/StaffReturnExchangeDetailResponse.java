@@ -9,16 +9,11 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/*
-    * Class này dùng để trả về chuỗi JSON tổng cho trang OrderDetail khi nhận vào orderId
- */
-
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class StaffOrderDetailResponse {
-    //Thông tin đơn hàng
+public class StaffReturnExchangeDetailResponse {
     private Long orderId;
     private String orderCode;
     private String orderStatus;
@@ -33,19 +28,32 @@ public class StaffOrderDetailResponse {
     private Boolean requiresFinalPayment;
     private List<String> availableActions;
 
-    //Thông tin người đặt hàng
     private String customerName;
     private String customerPhone;
     private String customerEmail;
 
-    //Thông tin sản phẩm
     private List<StaffOrderItemResponse> orderDetail;
     private List<StaffPrescriptionOrderItemResponse> prescriptionOrderDetail;
 
-    //Thông tin người nhận
     private String recipientName;
     private String recipientPhone;
     private String recipientEmail;
     private String recipientAddress;
     private String note;
+
+    private Long returnExchangeId;
+    private Long returnOrderDetailId;
+    private String returnCode;
+    private LocalDateTime requestDate;
+    private String returnExchangeStatus;
+    private Integer returnQuantity;
+    private String returnReason;
+    private String returnImgUrl;
+    private String productCondition;
+    private BigDecimal refundAmount;
+    private String refundMethod;
+    private String refundAccountNumber;
+    private LocalDateTime approvedDate;
+    private String rejectReason;
 }
+

@@ -1,6 +1,5 @@
 package com.swp391.eyewear_management_backend.integration.ghn;
 
-
 import com.swp391.eyewear_management_backend.config.ghn.GhnProperties;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
@@ -19,12 +18,9 @@ public class GhnShippingClient {
     private RestClient client() {
         return RestClient.builder()
                 .baseUrl(props.getBaseUrl())
-                .defaultHeader("Token", props.getToken())
-                .defaultHeader("ShopId", String.valueOf(props.getShopId()))
                 .build();
     }
 
-    // GHN: /v2/shipping-order/available-services
     public List<Map<String, Object>> availableServices(int toDistrictId) {
         Map<String, Object> body = Map.of(
                 "shop_id", props.getShopId(),
@@ -34,20 +30,21 @@ public class GhnShippingClient {
 
         var resp = client().post()
                 .uri("/v2/shipping-order/available-services")
+                .header("Token", props.getToken())
                 .contentType(MediaType.APPLICATION_JSON)
                 .accept(MediaType.APPLICATION_JSON)
                 .body(body)
                 .retrieve()
                 .body(Map.class);
 
-        // resp: {code, message, data:[{service_id, short_name, service_type_id}, ...]}
         return (List<Map<String, Object>>) resp.get("data");
     }
 
-    // GHN: /v2/shipping-order/fee
-    public Map<String, Object> fee(Map<String, Object> body) {
+    public Map<String, Object> createOrder(Map<String, Object> body) {
         return client().post()
-                .uri("/v2/shipping-order/fee")
+                .uri("/v2/shipping-order/create")
+                .header("Token", props.getToken())
+                .header("ShopId", String.valueOf(props.getShopId()))
                 .contentType(MediaType.APPLICATION_JSON)
                 .accept(MediaType.APPLICATION_JSON)
                 .body(body)
@@ -55,10 +52,45 @@ public class GhnShippingClient {
                 .body(Map.class);
     }
 
-    // GHN: /v2/shipping-order/leadtime
+    public Map<String, Object> detailByClientCode(Map<String, Object> body) {
+        return client().post()
+                .uri("/v2/shipping-order/detail-by-client-code")
+                .header("Token", props.getToken())
+                .header("ShopId", String.valueOf(props.getShopId()))
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON)
+                .body(body)
+                .retrieve()
+                .body(Map.class);
+    }
+
+    public Map<String, Object> fee(Map<String, Object> body) {
+        return client().post()
+                .uri("/v2/shipping-order/fee")
+                .header("Token", props.getToken())
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON)
+                .body(body)
+                .retrieve()
+                .body(Map.class);
+    }
+
     public Map<String, Object> leadtime(Map<String, Object> body) {
         return client().post()
                 .uri("/v2/shipping-order/leadtime")
+                .header("Token", props.getToken())
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON)
+                .body(body)
+                .retrieve()
+                .body(Map.class);
+    }
+
+    public Map<String, Object> detail(Map<String, Object> body) {
+        return client().post()
+                .uri("/v2/shipping-order/detail")
+                .header("Token", props.getToken())
+                .header("ShopId", String.valueOf(props.getShopId()))
                 .contentType(MediaType.APPLICATION_JSON)
                 .accept(MediaType.APPLICATION_JSON)
                 .body(body)

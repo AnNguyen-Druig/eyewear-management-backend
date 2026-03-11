@@ -1,9 +1,7 @@
 package com.swp391.eyewear_management_backend.service;
 
 import com.swp391.eyewear_management_backend.dto.request.StaffOrderSearchRequest;
-import com.swp391.eyewear_management_backend.dto.response.OrderStatusGroupResponse;
-import com.swp391.eyewear_management_backend.dto.response.StaffOrderDetailResponse;
-import com.swp391.eyewear_management_backend.dto.response.StaffOrderListResponse;
+import com.swp391.eyewear_management_backend.dto.response.*;
 import org.springframework.data.domain.Page;
 
 import java.util.List;
@@ -15,7 +13,10 @@ public interface StaffOrderService {
     StaffOrderDetailResponse getOrderDetailForSalesStaff(Long orderId);
     StaffOrderDetailResponse getOrderDetailForOperationStaff(Long orderId);
     StaffOrderDetailResponse confirmOrderForSalesStaff(Long orderId);
+    StaffOrderDetailResponse updateOrderForOperationStaff(Long orderId, String action);
     List<OrderStatusGroupResponse> getSalesStaffOrderStatuses();
     List<OrderStatusGroupResponse> getOperationStaffOrderStatuses();
     List<StaffOrderListResponse> getReturnExchangeOrders();
+    StaffReturnExchangeDetailResponse getReturnExchangeDetailForSalesStaff(Long returnExchangeId);
+    ReturnExchangeResponse getReturnExchangeById(Long returnExchangeId);
 }
