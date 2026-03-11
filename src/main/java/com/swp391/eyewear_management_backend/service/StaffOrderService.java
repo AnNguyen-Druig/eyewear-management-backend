@@ -15,6 +15,7 @@ public interface StaffOrderService {
     StaffOrderDetailResponse getOrderDetailForSalesStaff(Long orderId);
     StaffOrderDetailResponse getOrderDetailForOperationStaff(Long orderId);
     StaffOrderDetailResponse confirmOrderForSalesStaff(Long orderId);
+    StaffOrderDetailResponse updateOrderForOperationStaff(Long orderId, String action);
     List<OrderStatusGroupResponse> getSalesStaffOrderStatuses();
     List<OrderStatusGroupResponse> getOperationStaffOrderStatuses();
 }

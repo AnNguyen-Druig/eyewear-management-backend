@@ -1,9 +1,9 @@
 package com.swp391.eyewear_management_backend.service.impl;
 
+import com.swp391.eyewear_management_backend.config.OrderConstants;
 import com.swp391.eyewear_management_backend.entity.Invoice;
 import com.swp391.eyewear_management_backend.entity.Order;
 import com.swp391.eyewear_management_backend.entity.Payment;
-import com.swp391.eyewear_management_backend.repository.CartItemRepo;
 import com.swp391.eyewear_management_backend.repository.InvoiceRepo;
 import com.swp391.eyewear_management_backend.repository.OrderRepo;
 import com.swp391.eyewear_management_backend.repository.PaymentRepo;
@@ -15,7 +15,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -25,7 +24,6 @@ public class VnpayCallbackServiceImpl implements VnpayCallbackService {
     private final PaymentRepo paymentRepo;
     private final OrderRepo orderRepo;
     private final InvoiceRepo invoiceRepo;
-    private final CartItemRepo cartItemRepo;
 
     /*
         3 mục tiêu chính của hàm handleCallback:
@@ -65,31 +63,31 @@ public class VnpayCallbackServiceImpl implements VnpayCallbackService {
         if (order != null) {
             if (success) {
                 if ("FULL".equalsIgnoreCase(payment.getPaymentPurpose())) {
-                    order.setOrderStatus("PAID");
+                    order.setOrderStatus(OrderConstants.ORDER_STATUS_PAID);
                     orderRepo.save(order);
 
                     Invoice inv = invoiceRepo.findByOrderOrderID(order.getOrderID()).orElse(null);
                     if (inv != null) {
-                        inv.setStatus("PAID");
+                        inv.setStatus(OrderConstants.INVOICE_STATUS_PAID);
                         invoiceRepo.save(inv);
                     }
                 } else if ("DEPOSIT".equalsIgnoreCase(payment.getPaymentPurpose())) {
-                    order.setOrderStatus("PARTIALLY_PAID");
+                    order.setOrderStatus(OrderConstants.ORDER_STATUS_PARTIALLY_PAID);
                     orderRepo.save(order);
 
                     Invoice inv = invoiceRepo.findByOrderOrderID(order.getOrderID()).orElse(null);
                     if (inv != null) {
-                        inv.setStatus("PARTIALLY_PAID");
+                        inv.setStatus(OrderConstants.INVOICE_STATUS_PARTIALLY_PAID);
                         invoiceRepo.save(inv);
                     }
                 }
             } else {
-                order.setOrderStatus("CANCELED");
+                order.setOrderStatus(OrderConstants.ORDER_STATUS_CANCELED);
                 orderRepo.save(order);
 
                 Invoice inv = invoiceRepo.findByOrderOrderID(order.getOrderID()).orElse(null);
                 if (inv != null) {
-                    inv.setStatus("UNPAID");
+                    inv.setStatus(OrderConstants.INVOICE_STATUS_CANCELED);
                     invoiceRepo.save(inv);
                 }
             }

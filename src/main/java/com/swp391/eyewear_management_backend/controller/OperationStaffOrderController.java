@@ -1,6 +1,7 @@
 package com.swp391.eyewear_management_backend.controller;
 
 import com.swp391.eyewear_management_backend.dto.request.StaffOrderSearchRequest;
+import com.swp391.eyewear_management_backend.dto.request.UpdateOperationOrderRequest;
 import com.swp391.eyewear_management_backend.dto.response.ApiResponse;
 import com.swp391.eyewear_management_backend.dto.response.OrderStatusGroupResponse;
 import com.swp391.eyewear_management_backend.dto.response.StaffOrderDetailResponse;
@@ -49,6 +50,18 @@ public class OperationStaffOrderController {
     @GetMapping("/{orderId}")
     public ApiResponse<StaffOrderDetailResponse> getOrderDetail(@PathVariable Long orderId) {
         StaffOrderDetailResponse result = staffOrderService.getOrderDetailForOperationStaff(orderId);
+        return ApiResponse.<StaffOrderDetailResponse>builder()
+                .message("OK")
+                .result(result)
+                .build();
+    }
+
+    @PutMapping("/{orderId}/status")
+    public ApiResponse<StaffOrderDetailResponse> updateOrderStatus(
+            @PathVariable Long orderId,
+            @RequestBody @Valid UpdateOperationOrderRequest request
+    ) {
+        StaffOrderDetailResponse result = staffOrderService.updateOrderForOperationStaff(orderId, request.getAction());
         return ApiResponse.<StaffOrderDetailResponse>builder()
                 .message("OK")
                 .result(result)
