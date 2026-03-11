@@ -27,7 +27,7 @@ public class OpenApiConfig {
                         "/orders/**",
                         "/payments/vnpay/**",
                         "/users/**",
-                        "/api/staff/orders/**",
+                        "/api/staff/**",
                         "/api/products/**",
                         "/api/returns/**",
                         "/api/return-exchanges/**",
