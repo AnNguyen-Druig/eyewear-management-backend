@@ -255,7 +255,7 @@ public class UserServiceImpl implements UserService {
         // 2. Cập nhật các trường cơ bản (nếu admin có truyền vào)
         if(request.getPhone() != null) user.setPhone(request.getPhone().trim());
         if(request.getAddress() != null) user.setAddress(request.getAddress().trim());
-
+        if(request.getName() != null) user.setName(request.getName().trim());
         // 3. Cập nhật Status (Trạng thái làm việc)
         if(request.getStatus() != null) {
             user.setStatus(request.getStatus());

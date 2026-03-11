@@ -10,6 +10,7 @@ import lombok.experimental.FieldDefaults;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class AdminUpdateUserRequest {
     String username;
+    String name;
     String phone;
     String address;
     Boolean status;    // Dành cho việc đổi trạng thái (Active/Inactive)

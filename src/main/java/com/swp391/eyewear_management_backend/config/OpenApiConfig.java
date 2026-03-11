@@ -31,7 +31,8 @@ public class OpenApiConfig {
                         "/api/products/**",
                         "/api/returns/**",
                         "/api/return-exchanges/**",
-                        "/api/payment/**"
+                        "/api/payment/**",
+                        "/api/prescriptions/**"
                 )
                 .packagesToScan("com.swp391.eyewear_management_backend.controller")
                 .build();
