@@ -26,6 +26,9 @@ public class StaffOrderDetailResponse {
     private LocalDateTime orderDate;
     private BigDecimal totalAmount;
     private String shippingStatus;
+    private BigDecimal shippingFee;
+    private LocalDateTime expectedDeliveryAt;
+    private Boolean isPastExpectedDeliveryAt;
     private Boolean hasPrescriptionItem;
     private Boolean requiresFinalPayment;
     private List<String> availableActions;

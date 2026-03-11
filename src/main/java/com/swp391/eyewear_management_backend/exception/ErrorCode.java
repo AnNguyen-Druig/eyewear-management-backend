@@ -28,6 +28,10 @@ public enum ErrorCode {
 
     PAYMENT_METHOD_NOT_SUPPORTED(1027, "Payment is not applicable for this checkout", HttpStatus.BAD_REQUEST),
     PAYMENT_IN_PROGRESS(1028, "These cart items already have a pending online payment", HttpStatus.CONFLICT),
+    GHN_COD_OVER_LIMIT(1029, "COD amount exceeds GHN limit", HttpStatus.BAD_REQUEST),
+    GHN_CREATE_ORDER_FAILED(1030, "Create GHN shipping order failed", HttpStatus.BAD_REQUEST),
+    GHN_SYNC_FAILED(1031, "Sync GHN shipping status failed", HttpStatus.BAD_REQUEST),
+    ORDER_NOT_REACHED_EXPECTED_DELIVERY(1032, "Order has not reached expected delivery time", HttpStatus.BAD_REQUEST),
 
     USERNAME_REQUIRED(1012, "Username is required", HttpStatus.BAD_REQUEST),
     USERNAME_INVALID(1004, "Username must be at least 8 characters!", HttpStatus.BAD_REQUEST),

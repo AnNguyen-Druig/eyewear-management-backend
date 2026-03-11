@@ -71,7 +71,7 @@ public class VnpayController {
             targetPath = feProps.getSuccessPath();       // /success
             status = "SUCCESS";
         } else if ("24".equals(rspCode)) {
-            targetPath = feProps.getCancelPath();        // /cancel  ✅ NEW
+            targetPath = feProps.getCancelPath();        // /cancel
             status = "CANCELLED";
         } else {
             targetPath = feProps.getFailPath();          // /payment-result
