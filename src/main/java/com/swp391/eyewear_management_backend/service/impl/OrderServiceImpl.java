@@ -591,4 +591,309 @@ public class OrderServiceImpl implements OrderService {
     private LocalDateTime now() {
         return LocalDateTime.now(APP_ZONE_ID);
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<CustomerOrderHistoryResponse> getCustomerOrderHistory() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated() || auth instanceof AnonymousAuthenticationToken) {
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        }
+
+        String username = auth.getName();
+        User currentUser = userRepo.findByUsername(username)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+
+        List<Order> orders = orderRepo.findAllByUserIdWithShippingInfo(currentUser.getUserId());
+
+        return orders.stream()
+                .map(order -> CustomerOrderHistoryResponse.builder()
+                        .orderId(order.getOrderID())
+                        .orderCode(order.getOrderCode())
+                        .orderType(order.getOrderType())
+                        .orderStatus(order.getOrderStatus())
+                        .orderDate(order.getOrderDate())
+                        .totalAmount(order.getTotalAmount())
+                        .shippingStatus(order.getShippingInfo() != null ? order.getShippingInfo().getShippingStatus() : null)
+                        .build())
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public StaffOrderDetailResponse getOrderDetailForCustomer(Long orderId) {
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated() || auth instanceof AnonymousAuthenticationToken) {
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        }
+
+        String username = auth.getName();
+        User currentUser = userRepo.findByUsername(username)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+
+        Order order = orderRepo.findByIdFetchStatus(orderId)
+                .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_FOUND));
+
+        boolean isOwner = order.getUser() != null
+                && Objects.equals(order.getUser().getUserId(), currentUser.getUserId());
+
+        boolean isAdmin = auth.getAuthorities().stream()
+                .anyMatch(a -> "ROLE_ADMIN".equalsIgnoreCase(a.getAuthority())
+                        || "ADMIN".equalsIgnoreCase(a.getAuthority()));
+
+        if (!isOwner && !isAdmin) {
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        }
+
+        Long orderEntityId = order.getOrderID();
+        ShippingInfo shippingInfo = order.getShippingInfo();
+        String shippingStatus = shippingInfo != null ? shippingInfo.getShippingStatus() : null;
+        BigDecimal shippingFee = shippingInfo != null ? shippingInfo.getShippingFee() : null;
+        LocalDateTime expectedDeliveryAt = shippingInfo != null ? shippingInfo.getExpectedDeliveryAt() : null;
+        Boolean isPastExpectedDeliveryAt = expectedDeliveryAt != null && LocalDateTime.now(APP_ZONE_ID).isAfter(expectedDeliveryAt);
+
+        List<StaffOrderItemResponse> orderItems = orderDetailRepo.findByOrderIdFetchProduct(orderEntityId).stream()
+                .map(this::toOrderItemResponse)
+                .toList();
+
+        List<StaffPrescriptionOrderItemResponse> prescriptionItems = mapPrescriptionItems(orderEntityId);
+        boolean hasPrescriptionItem = !prescriptionItems.isEmpty();
+        boolean requiresFinalPayment = isRequiresFinalPayment(order);
+
+        return StaffOrderDetailResponse.builder()
+                .orderId(order.getOrderID())
+                .orderCode(order.getOrderCode())
+                .orderStatus(order.getOrderStatus())
+                .orderType(order.getOrderType())
+                .orderDate(order.getOrderDate())
+                .totalAmount(order.getTotalAmount())
+                .shippingStatus(shippingStatus)
+                .shippingFee(shippingFee)
+                .expectedDeliveryAt(expectedDeliveryAt)
+                .isPastExpectedDeliveryAt(isPastExpectedDeliveryAt)
+                .hasPrescriptionItem(hasPrescriptionItem)
+                .requiresFinalPayment(requiresFinalPayment)
+                .availableActions(List.of())
+                .customerName(order.getUser() != null ? order.getUser().getName() : null)
+                .customerPhone(order.getUser() != null ? order.getUser().getPhone() : null)
+                .customerEmail(order.getUser() != null ? order.getUser().getEmail() : null)
+                .orderDetail(orderItems)
+                .prescriptionOrderDetail(prescriptionItems)
+                .recipientName(shippingInfo != null ? shippingInfo.getRecipientName() : null)
+                .recipientPhone(shippingInfo != null ? shippingInfo.getRecipientPhone() : null)
+                .recipientEmail(shippingInfo != null ? shippingInfo.getRecipientEmail() : null)
+                .recipientAddress(shippingInfo != null ? shippingInfo.getRecipientAddress() : null)
+                .note(shippingInfo != null ? shippingInfo.getNote() : null)
+                .build();
+    }
+
+    private StaffOrderItemResponse toOrderItemResponse(OrderDetail detail) {
+        Product product = detail.getProduct();
+        Integer quantity = detail.getQuantity() == null ? 0 : detail.getQuantity();
+        BigDecimal unitPrice = detail.getUnitPrice() == null ? BigDecimal.ZERO : detail.getUnitPrice();
+        return StaffOrderItemResponse.builder()
+                .productId(product != null ? product.getProductID() : null)
+                .productName(product != null ? product.getProductName() : null)
+                .quantity(quantity)
+                .unitPrice(unitPrice)
+                .totalPrice(unitPrice.multiply(BigDecimal.valueOf(quantity)))
+                .imageUrl(pickPrimaryImage(product))
+                .build();
+    }
+
+    private List<StaffPrescriptionOrderItemResponse> mapPrescriptionItems(Long orderId) {
+        PrescriptionOrder prescriptionOrder = prescriptionOrderRepo.findByOrder_OrderID(orderId).orElse(null);
+        if (prescriptionOrder == null || prescriptionOrder.getPrescriptionOrderDetails() == null) {
+            return List.of();
+        }
+
+        Map<PrescriptionGroupKey, RxAggregate> aggregates = new LinkedHashMap<>();
+        for (PrescriptionOrderDetail detail : prescriptionOrder.getPrescriptionOrderDetails()) {
+            String rightSph = bdToText(detail.getRightEyeSph());
+            String rightCyl = bdToText(detail.getRightEyeCyl());
+            String rightAxis = detail.getRightEyeAxis() == null ? null : String.valueOf(detail.getRightEyeAxis());
+            String rightAdd = detail.getRightEyeAdd() == null ? null : String.valueOf(detail.getRightEyeAdd());
+            String rightPD = bdToText(detail.getPdRight());
+            String leftSph = bdToText(detail.getLeftEyeSph());
+            String leftCyl = bdToText(detail.getLeftEyeCyl());
+            String leftAxis = detail.getLeftEyeAxis() == null ? null : String.valueOf(detail.getLeftEyeAxis());
+            String leftAdd = detail.getLeftEyeAdd() == null ? null : String.valueOf(detail.getLeftEyeAdd());
+            String leftPD = bdToText(detail.getPdLeft());
+
+            Long frameId = detail.getFrame() != null ? detail.getFrame().getFrameID() : null;
+            Long lensId = detail.getLens() != null ? detail.getLens().getLensID() : null;
+            Product frameProduct = detail.getFrame() != null ? detail.getFrame().getProduct() : null;
+            Product lensProduct = detail.getLens() != null ? detail.getLens().getProduct() : null;
+            String frameName = frameProduct != null ? frameProduct.getProductName() : null;
+            String lensName = lensProduct != null ? lensProduct.getProductName() : null;
+
+            BigDecimal framePrice = productPrice(frameProduct);
+            BigDecimal lensPrice = productPrice(lensProduct);
+            BigDecimal lineTotal = detail.getSubTotal() == null ? BigDecimal.ZERO : detail.getSubTotal();
+
+            PrescriptionGroupKey key = new PrescriptionGroupKey(
+                    frameId,
+                    lensId,
+                    rightSph,
+                    rightCyl,
+                    rightAxis,
+                    rightAdd,
+                    rightPD,
+                    leftSph,
+                    leftCyl,
+                    leftAxis,
+                    leftAdd,
+                    leftPD,
+                    bdToText(lineTotal)
+            );
+
+            RxAggregate aggregate = aggregates.computeIfAbsent(key, k -> new RxAggregate(
+                    StaffPrescriptionOrderItemResponse.builder()
+                            .frameId(frameId)
+                            .frameName(frameName)
+                            .framePrice(framePrice)
+                            .frameImg(pickPrimaryImage(frameProduct))
+                            .lensId(lensId)
+                            .lensName(lensName)
+                            .lensPrice(lensPrice)
+                            .lensImg(pickPrimaryImage(lensProduct))
+                            .contactLensId(null)
+                            .contactLensName(null)
+                            .contactLensPrice(BigDecimal.ZERO)
+                            .contactLensImg(null)
+                            .rightEyeSph(rightSph)
+                            .rightEyeCyl(rightCyl)
+                            .rightEyeAxis(rightAxis)
+                            .rightEyeAdd(rightAdd)
+                            .rightPD(rightPD)
+                            .leftEyeSph(leftSph)
+                            .leftEyeCyl(leftCyl)
+                            .leftEyeAxis(leftAxis)
+                            .leftEyeAdd(leftAdd)
+                            .leftPD(leftPD)
+                            .quantity(0)
+                            .totalPrice(BigDecimal.ZERO)
+                            .build()
+            ));
+
+            aggregate.response.setQuantity(aggregate.response.getQuantity() + 1);
+            aggregate.response.setTotalPrice(aggregate.response.getTotalPrice().add(lineTotal));
+        }
+
+        return aggregates.values().stream().map(a -> a.response).toList();
+    }
+
+    private BigDecimal productPrice(Product product) {
+        return product != null && product.getPrice() != null ? product.getPrice() : BigDecimal.ZERO;
+    }
+
+    private String pickPrimaryImage(Product product) {
+        if (product == null || product.getImages() == null || product.getImages().isEmpty()) {
+            return null;
+        }
+        return product.getImages().stream()
+                .filter(Objects::nonNull)
+                .filter(i -> Boolean.TRUE.equals(i.getAvatar()))
+                .findFirst()
+                .map(ProductImage::getImageUrl)
+                .orElseGet(() -> product.getImages().stream()
+                        .filter(Objects::nonNull)
+                        .map(ProductImage::getImageUrl)
+                        .filter(url -> url != null && !url.trim().isEmpty())
+                        .findFirst()
+                        .orElse(null));
+    }
+
+    private String bdToText(BigDecimal value) {
+        return value == null ? null : value.stripTrailingZeros().toPlainString();
+    }
+
+    private String bdToText(Double value) {
+        return value == null ? null : BigDecimal.valueOf(value).stripTrailingZeros().toPlainString();
+    }
+
+    private boolean isRequiresFinalPayment(Order order) {
+        if (order == null) {
+            return false;
+        }
+        Invoice invoice = order.getInvoice();
+        if (invoice != null && isStatus(invoice.getStatus(), "PARTIALLY_PAID")) {
+            return true;
+        }
+        return isStatus(order.getOrderStatus(), "PARTIALLY_PAID");
+    }
+
+    private boolean isStatus(String value, String expected) {
+        return value != null && expected != null && value.trim().equalsIgnoreCase(expected);
+    }
+
+    private static class RxAggregate {
+        private final StaffPrescriptionOrderItemResponse response;
+
+        private RxAggregate(StaffPrescriptionOrderItemResponse response) {
+            this.response = response;
+        }
+    }
+
+    private static class PrescriptionGroupKey {
+        private final Long frameId;
+        private final Long lensId;
+        private final String rightEyeSph;
+        private final String rightEyeCyl;
+        private final String rightEyeAxis;
+        private final String rightEyeAdd;
+        private final String rightPD;
+        private final String leftEyeSph;
+        private final String leftEyeCyl;
+        private final String leftEyeAxis;
+        private final String leftEyeAdd;
+        private final String leftPD;
+        private final String lineSubTotal;
+
+        private PrescriptionGroupKey(Long frameId, Long lensId, String rightEyeSph, String rightEyeCyl,
+                                     String rightEyeAxis, String rightEyeAdd, String rightPD,
+                                     String leftEyeSph, String leftEyeCyl, String leftEyeAxis,
+                                     String leftEyeAdd, String leftPD, String lineSubTotal) {
+            this.frameId = frameId;
+            this.lensId = lensId;
+            this.rightEyeSph = rightEyeSph;
+            this.rightEyeCyl = rightEyeCyl;
+            this.rightEyeAxis = rightEyeAxis;
+            this.rightEyeAdd = rightEyeAdd;
+            this.rightPD = rightPD;
+            this.leftEyeSph = leftEyeSph;
+            this.leftEyeCyl = leftEyeCyl;
+            this.leftEyeAxis = leftEyeAxis;
+            this.leftEyeAdd = leftEyeAdd;
+            this.leftPD = leftPD;
+            this.lineSubTotal = lineSubTotal;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            PrescriptionGroupKey that = (PrescriptionGroupKey) o;
+            return Objects.equals(frameId, that.frameId)
+                    && Objects.equals(lensId, that.lensId)
+                    && Objects.equals(rightEyeSph, that.rightEyeSph)
+                    && Objects.equals(rightEyeCyl, that.rightEyeCyl)
+                    && Objects.equals(rightEyeAxis, that.rightEyeAxis)
+                    && Objects.equals(rightEyeAdd, that.rightEyeAdd)
+                    && Objects.equals(rightPD, that.rightPD)
+                    && Objects.equals(leftEyeSph, that.leftEyeSph)
+                    && Objects.equals(leftEyeCyl, that.leftEyeCyl)
+                    && Objects.equals(leftEyeAxis, that.leftEyeAxis)
+                    && Objects.equals(leftEyeAdd, that.leftEyeAdd)
+                    && Objects.equals(leftPD, that.leftPD)
+                    && Objects.equals(lineSubTotal, that.lineSubTotal);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(frameId, lensId, rightEyeSph, rightEyeCyl, rightEyeAxis, rightEyeAdd, rightPD,
+                    leftEyeSph, leftEyeCyl, leftEyeAxis, leftEyeAdd, leftPD, lineSubTotal);
+        }
+    }
 }
