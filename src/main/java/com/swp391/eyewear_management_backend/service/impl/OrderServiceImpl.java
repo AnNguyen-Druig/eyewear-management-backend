@@ -273,13 +273,14 @@ public class OrderServiceImpl implements OrderService {
         Payment createdPayment = null;
 
         if (plan.createDepositPayment) {
+            BigDecimal depAmount = normalizeOnlineAmount(plan.depositAmount);
             Payment dep = Payment.builder()
                     .order(savedOrder)
                     .paymentPurpose("DEPOSIT")
                     .createdAt(now())
                     .paymentDate(null)
                     .paymentMethod(plan.depositMethod)
-                    .amount(plan.depositAmount)
+                    .amount(depAmount)
                     .status("PENDING")
                     .build();
             paymentRepo.save(dep);
@@ -298,13 +299,14 @@ public class OrderServiceImpl implements OrderService {
             paymentRepo.save(rem);
 
         } else {
+            BigDecimal fullAmount = normalizeOnlineAmount(plan.fullAmount);
             Payment full = Payment.builder()
                     .order(savedOrder)
                     .paymentPurpose("FULL")
                     .createdAt(now())
                     .paymentDate(null)
                     .paymentMethod(plan.fullMethod)
-                    .amount(plan.fullAmount)
+                    .amount(fullAmount)
                     .status("PENDING")
                     .build();
             paymentRepo.save(full);
@@ -372,6 +374,11 @@ public class OrderServiceImpl implements OrderService {
                 .paymentUrl(paymentUrl)
                 .paymentId(paymentId)
                 .build();
+    }
+
+    private BigDecimal normalizeOnlineAmount(BigDecimal amount) {
+        if (amount == null) return BigDecimal.ZERO;
+        return amount.setScale(0, RoundingMode.HALF_UP);
     }
 
     @Override
