@@ -7,6 +7,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.FieldError;
+import org.springframework.web.HttpMediaTypeNotAcceptableException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -105,6 +107,32 @@ public class GlobalExceptionHandler {
                 .build();
 
         return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
+    }
+
+    /**
+     * 5) Client Accept không phù hợp (406)
+     */
+    @ExceptionHandler(HttpMediaTypeNotAcceptableException.class)
+    public ResponseEntity<ApiResponse> handleNotAcceptable(HttpMediaTypeNotAcceptableException ex) {
+        ApiResponse body = ApiResponse.builder()
+                .code(406)
+                .message("Header Accept phải hỗ trợ application/json")
+                .build();
+
+        return ResponseEntity.status(HttpStatus.NOT_ACCEPTABLE).body(body);
+    }
+
+    /**
+     * 6) Client Content-Type không phù hợp (415)
+     */
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<ApiResponse> handleNotSupported(HttpMediaTypeNotSupportedException ex) {
+        ApiResponse body = ApiResponse.builder()
+                .code(415)
+                .message("Header Content-Type phải là application/json")
+                .build();
+
+        return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE).body(body);
     }
 
     /**

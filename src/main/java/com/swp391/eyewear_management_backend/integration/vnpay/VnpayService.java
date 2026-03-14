@@ -62,17 +62,30 @@ public class VnpayService {
     }
 
     private String buildVnpayReturnUrl() {
-        String base = feProps.getBaseUrl();
         String configured = props.getReturnUrl();
+        if (configured != null && (configured.startsWith("http://") || configured.startsWith("https://"))) {
+            try {
+                URL url = new URL(configured);
+                String host = url.getHost();
+                int port = url.getPort();
 
-        String path = normalizeReturnPath(configured);
-        if (base == null || base.isBlank()) {
-            return path;
+                boolean isLocalBackend = ("localhost".equalsIgnoreCase(host) || "127.0.0.1".equals(host))
+                        && (port == -1 || port == 8080);
+
+                if (!isLocalBackend) {
+                    return configured;
+                }
+            } catch (Exception ignored) {
+            }
         }
+
+        String base = feProps.getBaseUrl();
+        String path = normalizeFrontendReturnPath(configured);
+        if (base == null || base.isBlank()) return path;
         return joinUrl(base, path);
     }
 
-    private String normalizeReturnPath(String configured) {
+    private String normalizeFrontendReturnPath(String configured) {
         String path = configured;
         if (path == null || path.isBlank()) {
             path = "/payment/vnpay/return";

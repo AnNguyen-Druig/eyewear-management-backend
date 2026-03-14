@@ -17,7 +17,7 @@ public class OrderController {
 
     private final OrderService orderService;
 
-    @PostMapping()
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     public ApiResponse<CreateOrderResponse> create(@RequestBody @Valid CreateOrderRequest request) {
         return ApiResponse.<CreateOrderResponse>builder()
                 .message("OK")

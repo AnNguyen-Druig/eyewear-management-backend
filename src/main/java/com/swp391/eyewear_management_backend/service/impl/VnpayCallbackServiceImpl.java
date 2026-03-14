@@ -4,15 +4,18 @@ import com.swp391.eyewear_management_backend.config.OrderConstants;
 import com.swp391.eyewear_management_backend.entity.Invoice;
 import com.swp391.eyewear_management_backend.entity.Order;
 import com.swp391.eyewear_management_backend.entity.Payment;
+import com.swp391.eyewear_management_backend.entity.ShippingInfo;
 import com.swp391.eyewear_management_backend.repository.InvoiceRepo;
 import com.swp391.eyewear_management_backend.repository.OrderRepo;
 import com.swp391.eyewear_management_backend.repository.PaymentRepo;
+import com.swp391.eyewear_management_backend.repository.ShippingInfoRepo;
 import com.swp391.eyewear_management_backend.service.VnpayCallbackService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 
@@ -24,6 +27,7 @@ public class VnpayCallbackServiceImpl implements VnpayCallbackService {
     private final PaymentRepo paymentRepo;
     private final OrderRepo orderRepo;
     private final InvoiceRepo invoiceRepo;
+    private final ShippingInfoRepo shippingInfoRepo;
     private final CheckoutCartTrackingService checkoutCartTrackingService;
 
     /*
@@ -45,11 +49,14 @@ public class VnpayCallbackServiceImpl implements VnpayCallbackService {
             - Lỗi tạo URL thanh toán: amount gửi đi không đúng với amount bạn lưu Payment
             - Tránh việc paymentId đúng nhưng amount bị mismatch → không được phép confirm.
          */
-        long expected = payment.getAmount().multiply(new BigDecimal("100")).longValue();
+        long expected = (payment.getAmount() == null ? BigDecimal.ZERO : payment.getAmount())
+                .setScale(0, RoundingMode.HALF_UP)
+                .multiply(new BigDecimal("100"))
+                .longValue();
         if (expected != vnpAmount) return IpResult.INVALID_AMOUNT;
 
         // idempotent : callback có thể đến nhiều lần, không được xử lý lặp
-        if (!"PENDING".equalsIgnoreCase(payment.getStatus())) {
+        if (!OrderConstants.PAYMENT_STATUS_PENDING.equalsIgnoreCase(payment.getStatus())) {
             return IpResult.ALREADY_CONFIRMED;
         }
 
@@ -57,7 +64,7 @@ public class VnpayCallbackServiceImpl implements VnpayCallbackService {
         boolean success = "00".equals(vnpResponseCode) && "00".equals(vnpTransactionStatus); // chỉ thành công khi cả responseCode và transactionStatus đều = 00
 
         payment.setPaymentDate(LocalDateTime.now(APP_ZONE_ID));
-        payment.setStatus(success ? "SUCCESS" : "FAILED");
+        payment.setStatus(success ? OrderConstants.PAYMENT_STATUS_SUCCESS : OrderConstants.PAYMENT_STATUS_FAILED);
         paymentRepo.save(payment);
 
         // Update Order + Invoice theo purpose
@@ -88,6 +95,12 @@ public class VnpayCallbackServiceImpl implements VnpayCallbackService {
             } else {
                 order.setOrderStatus(OrderConstants.ORDER_STATUS_CANCELED);
                 orderRepo.save(order);
+
+                ShippingInfo si = order.getShippingInfo();
+                if (si != null) {
+                    si.setShippingStatus(OrderConstants.SHIPPING_STATUS_CANCELED);
+                    shippingInfoRepo.save(si);
+                }
 
                 Invoice inv = invoiceRepo.findByOrderOrderID(order.getOrderID()).orElse(null);
                 if (inv != null) {
