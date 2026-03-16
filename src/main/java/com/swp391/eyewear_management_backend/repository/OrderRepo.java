@@ -47,17 +47,14 @@ public interface OrderRepo extends JpaRepository<Order, Long>, JpaSpecificationE
     @EntityGraph(attributePaths = {"user"})
     Page<Order> findAll(@Nullable Specification<Order> spec, Pageable pageable);
 
-    /**
-     * Lấy tất cả orders có return/exchange request
-     */
-    @Query("""
-        SELECT DISTINCT o
-        FROM Order o
-        JOIN FETCH o.user u
-        JOIN o.orderDetails od
-        WHERE od.returnExchange IS NOT NULL
-    """)
-    List<Order> findAllOrdersWithReturnExchange();
+    @Query(value = """
+        SELECT DISTINCT re.Order_ID
+        FROM Return_Exchange re
+    """, nativeQuery = true)
+    List<Long> findOrderIdsWithReturnExchange();
+
+    @EntityGraph(attributePaths = {"user"})
+    List<Order> findByOrderIDIn(List<Long> orderIds);
 
     @Query("""
         SELECT o

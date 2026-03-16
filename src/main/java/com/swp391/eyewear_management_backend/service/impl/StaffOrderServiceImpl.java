@@ -2,6 +2,7 @@ package com.swp391.eyewear_management_backend.service.impl;
 
 import com.swp391.eyewear_management_backend.config.OrderConstants;
 import com.swp391.eyewear_management_backend.config.ghn.GhnProperties;
+import com.swp391.eyewear_management_backend.dto.projection.StaffReturnExchangeListProjection;
 import com.swp391.eyewear_management_backend.dto.request.ReturnExchangeDecisionRequest;
 import com.swp391.eyewear_management_backend.dto.request.StaffOrderSearchRequest;
 import com.swp391.eyewear_management_backend.dto.response.*;
@@ -32,7 +33,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -124,34 +124,10 @@ public class StaffOrderServiceImpl implements StaffOrderService {
 
     @Override
     @PreAuthorize("hasAnyAuthority('ROLE_SALES STAFF','ROLE_ADMIN','ROLE_MANAGER')")
-    public List<StaffOrderListResponse> getReturnExchangeOrders() {
-        List<Order> orders = orderRepo.findAllOrdersWithReturnExchange();
-        orders.sort((o1, o2) -> o2.getOrderDate().compareTo(o1.getOrderDate()));
-
-        List<StaffOrderListResponse> responses = new ArrayList<>();
-        for (Order entityOrder : orders) {
-            StaffOrderListResponse response = staffOrderMapper.toStaffOrderListResponse(entityOrder);
-            ReturnExchange returnExchange = entityOrder.getOrderDetails().stream()
-                    .map(OrderDetail::getReturnExchange)
-                    .filter(Objects::nonNull)
-                    .findFirst()
-                    .orElse(null);
-
-            if (returnExchange != null) {
-                response.setReturnExchangeId(returnExchange.getReturnExchangeID());
-                response.setReturnType(resolveReturnType(returnExchange));
-                response.setReturnExchangeStatus(returnExchange.getStatus());
-            }
-            responses.add(response);
-        }
-        return responses;
-    }
-
-    private String resolveReturnType(ReturnExchange returnExchange) {
-        if (returnExchange.getRefundAmount() != null || StringUtils.hasText(returnExchange.getRefundMethod())) {
-            return "RETURN";
-        }
-        return "EXCHANGE";
+    public List<StaffReturnExchangeListResponse> getReturnExchangeOrders() {
+        return returnExchangeRepo.findStaffReturnExchangeSummaries().stream()
+                .map(this::mapToStaffReturnExchangeListResponse)
+                .toList();
     }
 
     @Override
@@ -264,6 +240,7 @@ public class StaffOrderServiceImpl implements StaffOrderService {
                 }
                 validateReachedExpectedDeliveryAt(shippingInfo);
                 shippingInfo.setShippingStatus(OrderConstants.SHIPPING_STATUS_DELIVERED);
+                shippingInfo.setDeliveredAt(LocalDateTime.now(APP_ZONE_ID));
                 settlePaymentsAndInvoiceOnDelivered(order);
             }
             case OrderConstants.OPERATION_ACTION_MARK_FAILED -> {
@@ -1102,10 +1079,7 @@ public class StaffOrderServiceImpl implements StaffOrderService {
         ReturnExchange returnExchange = returnExchangeRepo.findById(returnExchangeId)
                 .orElseThrow(() -> new AppException(ErrorCode.RETURN_EXCHANGE_NOT_FOUND));
 
-        OrderDetail orderDetail = returnExchange.getOrderDetail();
-        Long orderId = orderDetail != null && orderDetail.getOrder() != null
-                ? orderDetail.getOrder().getOrderID()
-                : null;
+        Long orderId = returnExchange.getOrder() == null ? null : returnExchange.getOrder().getOrderID();
         if (orderId == null) {
             throw new AppException(ErrorCode.INVALID_REQUEST);
         }
@@ -1137,19 +1111,26 @@ public class StaffOrderServiceImpl implements StaffOrderService {
                 .recipientAddress(orderDetailResponse.getRecipientAddress())
                 .note(orderDetailResponse.getNote())
                 .returnExchangeId(returnExchange.getReturnExchangeID())
-                .returnOrderDetailId(orderDetail.getOrderDetailID())
                 .returnCode(returnExchange.getReturnCode())
                 .requestDate(returnExchange.getRequestDate())
                 .returnExchangeStatus(returnExchange.getStatus())
-                .returnQuantity(returnExchange.getQuantity())
+                .returnType(returnExchange.getReturnType())
+                .requestScope(returnExchange.getRequestScope())
+                .requestNote(returnExchange.getRequestNote())
                 .returnReason(returnExchange.getReturnReason())
-                .returnImgUrl(returnExchange.getImageUrl())
-                .productCondition(returnExchange.getProductCondition())
+                .customerEvidenceUrl(returnExchange.getCustomerEvidenceUrl())
                 .refundAmount(returnExchange.getRefundAmount())
                 .refundMethod(returnExchange.getRefundMethod())
                 .refundAccountNumber(returnExchange.getRefundAccountNumber())
+                .refundAccountName(returnExchange.getRefundAccountName())
+                .refundReferenceCode(returnExchange.getRefundReferenceCode())
+                .staffRefundEvidenceUrl(returnExchange.getStaffRefundEvidenceUrl())
                 .approvedDate(returnExchange.getApprovedDate())
+                .approvedByName(returnExchange.getApprovedBy() == null ? null : returnExchange.getApprovedBy().getName())
+                .processedDate(returnExchange.getProcessedDate())
+                .processedByName(returnExchange.getProcessedBy() == null ? null : returnExchange.getProcessedBy().getName())
                 .rejectReason(returnExchange.getRejectReason())
+                .returnExchangeItems(mapReturnExchangeItems(returnExchange.getReturnExchangeItems()))
                 .build();
     }
 
@@ -1198,11 +1179,61 @@ public class StaffOrderServiceImpl implements StaffOrderService {
                     throw new AppException(ErrorCode.INVALID_REQUEST);
                 }
                 returnExchange.setStatus(RETURN_STATUS_COMPLETED);
+                returnExchange.setProcessedBy(getCurrentUser());
+                returnExchange.setProcessedDate(LocalDateTime.now());
             }
             default -> throw new AppException(ErrorCode.INVALID_REQUEST);
         }
 
         ReturnExchange savedReturnExchange = returnExchangeRepo.save(returnExchange);
         return returnExchangeMapper.toReturnExchangeResponse(savedReturnExchange);
+    }
+
+    private StaffReturnExchangeListResponse mapToStaffReturnExchangeListResponse(StaffReturnExchangeListProjection source) {
+        return StaffReturnExchangeListResponse.builder()
+                .returnExchangeId(source.getReturnExchangeId())
+                .returnCode(source.getReturnCode())
+                .orderId(source.getOrderId())
+                .orderCode(source.getOrderCode())
+                .orderDate(source.getOrderDate())
+                .orderStatus(source.getOrderStatus())
+                .customerName(source.getCustomerName())
+                .customerPhone(source.getCustomerPhone())
+                .customerEmail(source.getCustomerEmail())
+                .returnType(source.getReturnType())
+                .requestScope(source.getRequestScope())
+                .requestDate(source.getRequestDate())
+                .returnExchangeStatus(source.getReturnExchangeStatus())
+                .refundAmount(source.getRefundAmount())
+                .refundMethod(source.getRefundMethod())
+                .refundAccountNumber(source.getRefundAccountNumber())
+                .refundAccountName(source.getRefundAccountName())
+                .requestNote(source.getRequestNote())
+                .rejectReason(source.getRejectReason())
+                .approvedDate(source.getApprovedDate())
+                .processedDate(source.getProcessedDate())
+                .build();
+    }
+
+    private List<ReturnExchangeItemResponse> mapReturnExchangeItems(List<ReturnExchangeItem> items) {
+        if (items == null || items.isEmpty()) {
+            return List.of();
+        }
+        return items.stream()
+                .map(item -> ReturnExchangeItemResponse.builder()
+                        .returnExchangeItemId(item.getReturnExchangeItemID())
+                        .orderDetailId(item.getOrderDetail() == null ? null : item.getOrderDetail().getOrderDetailID())
+                        .productId(item.getOrderDetail() == null || item.getOrderDetail().getProduct() == null
+                                ? null
+                                : item.getOrderDetail().getProduct().getProductID())
+                        .productName(item.getOrderDetail() == null || item.getOrderDetail().getProduct() == null
+                                ? null
+                                : item.getOrderDetail().getProduct().getProductName())
+                        .requestedQuantity(item.getQuantity())
+                        .orderQuantity(item.getOrderDetail() == null ? null : item.getOrderDetail().getQuantity())
+                        .itemReason(item.getItemReason())
+                        .note(item.getNote())
+                        .build())
+                .toList();
     }
 }

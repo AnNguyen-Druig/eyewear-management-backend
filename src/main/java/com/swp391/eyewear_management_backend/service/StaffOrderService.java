@@ -17,7 +17,7 @@ public interface StaffOrderService {
     StaffOrderDetailResponse updateOrderForOperationStaff(Long orderId, String action);
     List<OrderStatusGroupResponse> getSalesStaffOrderStatuses();
     List<OrderStatusGroupResponse> getOperationStaffOrderStatuses();
-    List<StaffOrderListResponse> getReturnExchangeOrders();
+    List<StaffReturnExchangeListResponse> getReturnExchangeOrders();
     StaffReturnExchangeDetailResponse getReturnExchangeDetailForSalesStaff(Long returnExchangeId);
     ReturnExchangeResponse getReturnExchangeById(Long returnExchangeId);
     ReturnExchangeResponse updateReturnExchangeStatusForSalesStaff(Long returnExchangeId, ReturnExchangeDecisionRequest request);

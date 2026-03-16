@@ -5,6 +5,7 @@ import lombok.*;
 import lombok.experimental.FieldDefaults;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -12,28 +13,46 @@ import java.math.BigDecimal;
 @Builder
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class ReturnExchangeRequest {
-    
+
+    @JsonProperty("order_id")
+    Long orderId;
+
     @JsonProperty("order_detail_id")
     Long orderDetailId;
-    
-    @JsonProperty("quantity")
-    Integer quantity;
-    
+
+    @JsonProperty("return_type")
+    String returnType;
+
+    @JsonProperty("request_scope")
+    String requestScope;
+
+    @JsonProperty("request_note")
+    String requestNote;
+
     @JsonProperty("return_reason")
     String returnReason;
-    
-    @JsonProperty("product_condition")
-    String productCondition;
-    
+
+    @JsonProperty("customer_evidence_url")
+    String customerEvidenceUrl;
+
     @JsonProperty("refund_amount")
     BigDecimal refundAmount;
-    
+
     @JsonProperty("refund_method")
     String refundMethod;
-    
+
     @JsonProperty("refund_account_number")
     String refundAccountNumber;
-    
-    @JsonProperty("image_url")
-    String imageUrl;
+
+    @JsonProperty("refund_account_name")
+    String refundAccountName;
+
+    @JsonProperty("refund_reference_code")
+    String refundReferenceCode;
+
+    @JsonProperty("staff_refund_evidence_url")
+    String staffRefundEvidenceUrl;
+
+    @JsonProperty("items")
+    List<ReturnExchangeItemRequest> items;
 }

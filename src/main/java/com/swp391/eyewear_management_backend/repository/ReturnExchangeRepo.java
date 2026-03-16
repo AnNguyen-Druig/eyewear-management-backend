@@ -1,7 +1,11 @@
 package com.swp391.eyewear_management_backend.repository;
 
+import com.swp391.eyewear_management_backend.dto.projection.ReturnExchangeOrderSummaryProjection;
+import com.swp391.eyewear_management_backend.dto.projection.StaffReturnExchangeListProjection;
 import com.swp391.eyewear_management_backend.entity.ReturnExchange;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -28,5 +32,53 @@ public interface ReturnExchangeRepo extends JpaRepository<ReturnExchange, Long> 
     /**
      * Kiểm tra xem Order Detail đã có return/exchange chưa
      */
-    boolean existsByOrderDetail_OrderDetailID(Long orderDetailId);
+    boolean existsByOrder_OrderIDAndReturnTypeAndRequestScopeAndStatusIn(
+            Long orderId,
+            String returnType,
+            String requestScope,
+            List<String> statuses);
+
+    @Query(value = """
+        SELECT re.Return_Exchange_ID AS returnExchangeId,
+               re.Return_Code AS returnCode,
+               re.Order_ID AS orderId,
+               o.Order_Code AS orderCode,
+               o.Order_Date AS orderDate,
+               o.Order_Status AS orderStatus,
+               u.Name AS customerName,
+               u.Phone AS customerPhone,
+               u.Email AS customerEmail,
+               re.Return_Type AS returnType,
+               re.Request_Scope AS requestScope,
+               re.Request_Date AS requestDate,
+               re.Status AS returnExchangeStatus,
+               re.Refund_Amount AS refundAmount,
+               re.Refund_Method AS refundMethod,
+               re.Refund_Account_Number AS refundAccountNumber,
+               re.Refund_Account_Name AS refundAccountName,
+               re.Request_Note AS requestNote,
+               re.Reject_Reason AS rejectReason,
+               re.Approved_Date AS approvedDate,
+               re.Processed_Date AS processedDate
+        FROM Return_Exchange re
+        JOIN [Order] o ON o.Order_ID = re.Order_ID
+        JOIN [User] u ON u.User_ID = re.User_ID
+        ORDER BY re.Request_Date DESC
+    """, nativeQuery = true)
+    List<StaffReturnExchangeListProjection> findStaffReturnExchangeSummaries();
+
+    @Query(value = """
+        SELECT re.Order_ID AS orderId,
+               re.Return_Exchange_ID AS returnExchangeId,
+               re.Status AS status,
+               re.Return_Type AS returnType
+        FROM Return_Exchange re
+        WHERE re.Order_ID IN (:orderIds)
+          AND re.Request_Date = (
+              SELECT MAX(re2.Request_Date)
+              FROM Return_Exchange re2
+              WHERE re2.Order_ID = re.Order_ID
+          )
+    """, nativeQuery = true)
+    List<ReturnExchangeOrderSummaryProjection> findLatestSummariesByOrderIds(@Param("orderIds") List<Long> orderIds);
 }

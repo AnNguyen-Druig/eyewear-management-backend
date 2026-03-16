@@ -42,18 +42,25 @@ public class StaffReturnExchangeDetailResponse {
     private String note;
 
     private Long returnExchangeId;
-    private Long returnOrderDetailId;
     private String returnCode;
     private LocalDateTime requestDate;
     private String returnExchangeStatus;
-    private Integer returnQuantity;
+    private String returnType;
+    private String requestScope;
+    private String requestNote;
     private String returnReason;
-    private String returnImgUrl;
-    private String productCondition;
+    private String customerEvidenceUrl;
     private BigDecimal refundAmount;
     private String refundMethod;
     private String refundAccountNumber;
+    private String refundAccountName;
+    private String refundReferenceCode;
+    private String staffRefundEvidenceUrl;
     private LocalDateTime approvedDate;
+    private String approvedByName;
+    private LocalDateTime processedDate;
+    private String processedByName;
     private String rejectReason;
+    private List<ReturnExchangeItemResponse> returnExchangeItems;
 }
 

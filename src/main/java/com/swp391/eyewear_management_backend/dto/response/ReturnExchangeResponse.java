@@ -22,20 +22,26 @@ public class ReturnExchangeResponse {
     @JsonProperty("return_code")
     String returnCode;
     
-    @JsonProperty("order_detail_id")
-    Long orderDetailId;
+    @JsonProperty("order_id")
+    Long orderId;
     
     @JsonProperty("user_id")
     Long userId;
     
-    @JsonProperty("quantity")
-    Integer quantity;
+    @JsonProperty("return_type")
+    String returnType;
+
+    @JsonProperty("request_scope")
+    String requestScope;
+
+    @JsonProperty("request_note")
+    String requestNote;
     
     @JsonProperty("return_reason")
     String returnReason;
     
-    @JsonProperty("product_condition")
-    String productCondition;
+    @JsonProperty("customer_evidence_url")
+    String customerEvidenceUrl;
     
     @JsonProperty("refund_amount")
     BigDecimal refundAmount;
@@ -46,6 +52,15 @@ public class ReturnExchangeResponse {
     @JsonProperty("refund_account_number")
     String refundAccountNumber;
     
+    @JsonProperty("refund_account_name")
+    String refundAccountName;
+
+    @JsonProperty("refund_reference_code")
+    String refundReferenceCode;
+
+    @JsonProperty("staff_refund_evidence_url")
+    String staffRefundEvidenceUrl;
+
     @JsonProperty("status")
     String status;
     
@@ -58,9 +73,12 @@ public class ReturnExchangeResponse {
     @JsonProperty("approved_by_id")
     Long approvedById;
     
+    @JsonProperty("processed_date")
+    LocalDateTime processedDate;
+
+    @JsonProperty("processed_by_id")
+    Long processedById;
+
     @JsonProperty("reject_reason")
     String rejectReason;
-    
-    @JsonProperty("image_url")
-    String imageUrl;
 }

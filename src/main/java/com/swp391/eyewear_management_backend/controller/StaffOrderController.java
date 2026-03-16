@@ -81,9 +81,9 @@ public class StaffOrderController {
     //Hàm này dùng để lấy danh sách đơn hàng có yêu cầu đổi trả cho SALES STAFF
     @GetMapping("/return-exchange")
 //    @PreAuthorize("hasAnyAuthority('ROLE_SALES STAFF','ROLE_ADMIN','ROLE_MANAGER')")
-    public ApiResponse<List<StaffOrderListResponse>> getReturnExchangeOrders() {
-        List<StaffOrderListResponse> result = staffOrderService.getReturnExchangeOrders();
-        return ApiResponse.<List<StaffOrderListResponse>>builder()
+    public ApiResponse<List<StaffReturnExchangeListResponse>> getReturnExchangeOrders() {
+        List<StaffReturnExchangeListResponse> result = staffOrderService.getReturnExchangeOrders();
+        return ApiResponse.<List<StaffReturnExchangeListResponse>>builder()
                 .message("OK")
                 .result(result)
                 .build();

@@ -532,6 +532,7 @@ CREATE TABLE Shipping_Info (
 
                                Shipping_Status NVARCHAR(30) NOT NULL CONSTRAINT DF_ShippingStatus DEFAULT N'PENDING',
                                Expected_Delivery_At DATETIME2(0) NULL,
+                               Delivered_At DATETIME2(0) NULL,
 
                                CONSTRAINT FK_ShippingInfo_Order FOREIGN KEY (Order_ID) REFERENCES [Order](Order_ID),
 

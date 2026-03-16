@@ -66,4 +66,7 @@ public class ShippingInfo {
 
     @Column(name = "Expected_Delivery_At")
     private LocalDateTime expectedDeliveryAt;
+
+    @Column(name = "Delivered_At")
+    private LocalDateTime deliveredAt;
 }

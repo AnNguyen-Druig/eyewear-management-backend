@@ -1,5 +1,6 @@
 package com.swp391.eyewear_management_backend.service.impl;
 
+import com.swp391.eyewear_management_backend.dto.request.ReturnExchangeItemRequest;
 import com.swp391.eyewear_management_backend.dto.request.ReturnExchangeRequest;
 import com.swp391.eyewear_management_backend.dto.response.ReturnExchangeResponse;
 import com.swp391.eyewear_management_backend.entity.*;
@@ -7,6 +8,7 @@ import com.swp391.eyewear_management_backend.exception.AppException;
 import com.swp391.eyewear_management_backend.exception.ErrorCode;
 import com.swp391.eyewear_management_backend.mapper.ReturnExchangeMapper;
 import com.swp391.eyewear_management_backend.repository.OrderDetailRepo;
+import com.swp391.eyewear_management_backend.repository.OrderRepo;
 import com.swp391.eyewear_management_backend.repository.ReturnExchangeRepo;
 import com.swp391.eyewear_management_backend.repository.UserRepo;
 import com.swp391.eyewear_management_backend.service.ReturnExchangeService;
@@ -15,9 +17,12 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -30,6 +35,9 @@ public class ReturnExchangeServiceImpl implements ReturnExchangeService {
 
     @Autowired
     private OrderDetailRepo orderDetailRepository;
+
+    @Autowired
+    private OrderRepo orderRepository;
 
     @Autowired
     private UserRepo userRepository;
@@ -64,32 +72,35 @@ public class ReturnExchangeServiceImpl implements ReturnExchangeService {
 
     @Override
     public ReturnExchangeResponse createReturnExchange(ReturnExchangeRequest request) {
-        // Lấy user hiện tại
         User currentUser = getCurrentUser();
+        Order order = resolveOrder(request);
+        String returnType = normalizeReturnType(request.getReturnType());
+        String requestScope = normalizeRequestScope(request.getRequestScope(), returnType);
 
-        // Kiểm tra OrderDetail có tồn tại không
-        OrderDetail orderDetail = orderDetailRepository.findById(request.getOrderDetailId())
-                .orElseThrow(() -> new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION)); // Thay bằng lỗi phù hợp
-
-        // Kiểm tra OrderDetail đã có return/exchange chưa
-        if (returnExchangeRepository.existsByOrderDetail_OrderDetailID(request.getOrderDetailId())) {
-            throw new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION); // Thay bằng lỗi phù hợp
+        if ("REFUND".equals(returnType)
+                && returnExchangeRepository.existsByOrder_OrderIDAndReturnTypeAndRequestScopeAndStatusIn(
+                order.getOrderID(), returnType, requestScope, List.of("PENDING", "APPROVED"))) {
+            throw new AppException(ErrorCode.INVALID_REQUEST);
         }
 
-        // Tạo ReturnExchange mới
         ReturnExchange returnExchange = new ReturnExchange();
-        returnExchange.setOrderDetail(orderDetail);
+        returnExchange.setOrder(order);
         returnExchange.setUser(currentUser);
         returnExchange.setReturnCode(generateReturnCode());
         returnExchange.setRequestDate(LocalDateTime.now());
-        returnExchange.setQuantity(request.getQuantity());
+        returnExchange.setReturnType(returnType);
+        returnExchange.setRequestScope(requestScope);
+        returnExchange.setRequestNote(trimToNull(request.getRequestNote()));
         returnExchange.setReturnReason(request.getReturnReason());
-        returnExchange.setProductCondition(request.getProductCondition());
+        returnExchange.setCustomerEvidenceUrl(trimToNull(request.getCustomerEvidenceUrl()));
         returnExchange.setRefundAmount(request.getRefundAmount());
-        returnExchange.setRefundMethod(request.getRefundMethod());
-        returnExchange.setRefundAccountNumber(request.getRefundAccountNumber());
-        returnExchange.setStatus("PENDING"); // Trạng thái mặc định
-        returnExchange.setImageUrl(request.getImageUrl());
+        returnExchange.setRefundMethod(trimToNull(request.getRefundMethod()));
+        returnExchange.setRefundAccountNumber(trimToNull(request.getRefundAccountNumber()));
+        returnExchange.setRefundAccountName(trimToNull(request.getRefundAccountName()));
+        returnExchange.setRefundReferenceCode(trimToNull(request.getRefundReferenceCode()));
+        returnExchange.setStaffRefundEvidenceUrl(trimToNull(request.getStaffRefundEvidenceUrl()));
+        returnExchange.setStatus("PENDING");
+        returnExchange.setReturnExchangeItems(buildReturnExchangeItems(request, order, returnExchange, requestScope));
 
         ReturnExchange savedReturnExchange = returnExchangeRepository.save(returnExchange);
         return returnExchangeMapper.toReturnExchangeResponse(savedReturnExchange);
@@ -173,27 +184,37 @@ public class ReturnExchangeServiceImpl implements ReturnExchangeService {
             throw new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION); // Thay bằng lỗi phù hợp
         }
 
-        // Cập nhật các trường cho phép
-        if (request.getQuantity() != null) {
-            returnExchange.setQuantity(request.getQuantity());
+        if (request.getRequestNote() != null) {
+            returnExchange.setRequestNote(trimToNull(request.getRequestNote()));
         }
         if (request.getReturnReason() != null) {
             returnExchange.setReturnReason(request.getReturnReason());
         }
-        if (request.getProductCondition() != null) {
-            returnExchange.setProductCondition(request.getProductCondition());
+        if (request.getCustomerEvidenceUrl() != null) {
+            returnExchange.setCustomerEvidenceUrl(trimToNull(request.getCustomerEvidenceUrl()));
         }
         if (request.getRefundAmount() != null) {
             returnExchange.setRefundAmount(request.getRefundAmount());
         }
         if (request.getRefundMethod() != null) {
-            returnExchange.setRefundMethod(request.getRefundMethod());
+            returnExchange.setRefundMethod(trimToNull(request.getRefundMethod()));
         }
         if (request.getRefundAccountNumber() != null) {
-            returnExchange.setRefundAccountNumber(request.getRefundAccountNumber());
+            returnExchange.setRefundAccountNumber(trimToNull(request.getRefundAccountNumber()));
         }
-        if (request.getImageUrl() != null) {
-            returnExchange.setImageUrl(request.getImageUrl());
+        if (request.getRefundAccountName() != null) {
+            returnExchange.setRefundAccountName(trimToNull(request.getRefundAccountName()));
+        }
+        if (request.getRefundReferenceCode() != null) {
+            returnExchange.setRefundReferenceCode(trimToNull(request.getRefundReferenceCode()));
+        }
+        if (request.getStaffRefundEvidenceUrl() != null) {
+            returnExchange.setStaffRefundEvidenceUrl(trimToNull(request.getStaffRefundEvidenceUrl()));
+        }
+        if (request.getItems() != null) {
+            returnExchange.getReturnExchangeItems().clear();
+            returnExchange.getReturnExchangeItems()
+                    .addAll(buildReturnExchangeItems(request, returnExchange.getOrder(), returnExchange, returnExchange.getRequestScope()));
         }
 
         ReturnExchange updatedReturnExchange = returnExchangeRepository.save(returnExchange);
@@ -211,5 +232,85 @@ public class ReturnExchangeServiceImpl implements ReturnExchangeService {
         }
 
         returnExchangeRepository.delete(returnExchange);
+    }
+
+    private Order resolveOrder(ReturnExchangeRequest request) {
+        if (request == null) {
+            throw new AppException(ErrorCode.INVALID_REQUEST);
+        }
+        if (request.getOrderId() != null) {
+            return orderRepository.findById(request.getOrderId())
+                    .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_FOUND));
+        }
+        if (request.getOrderDetailId() != null) {
+            OrderDetail orderDetail = orderDetailRepository.findById(request.getOrderDetailId())
+                    .orElseThrow(() -> new AppException(ErrorCode.INVALID_REQUEST));
+            return orderDetail.getOrder();
+        }
+        throw new AppException(ErrorCode.INVALID_REQUEST);
+    }
+
+    private String normalizeReturnType(String returnType) {
+        String normalized = trimToNull(returnType);
+        if (normalized == null) {
+            return "REFUND";
+        }
+        return normalized.toUpperCase(Locale.ROOT);
+    }
+
+    private String normalizeRequestScope(String requestScope, String returnType) {
+        String normalized = trimToNull(requestScope);
+        if (normalized == null) {
+            return "REFUND".equals(returnType) ? "ORDER" : "ITEM";
+        }
+        return normalized.toUpperCase(Locale.ROOT);
+    }
+
+    private List<ReturnExchangeItem> buildReturnExchangeItems(
+            ReturnExchangeRequest request,
+            Order order,
+            ReturnExchange returnExchange,
+            String requestScope
+    ) {
+        if (!"ITEM".equals(requestScope)) {
+            return List.of();
+        }
+        List<ReturnExchangeItemRequest> items = request.getItems();
+        if (items == null || items.isEmpty()) {
+            if (request.getOrderDetailId() == null) {
+                throw new AppException(ErrorCode.INVALID_REQUEST);
+            }
+            items = List.of(ReturnExchangeItemRequest.builder()
+                    .orderDetailId(request.getOrderDetailId())
+                    .quantity(1)
+                    .build());
+        }
+
+        List<ReturnExchangeItem> result = new ArrayList<>();
+        for (ReturnExchangeItemRequest itemRequest : items) {
+            if (itemRequest.getOrderDetailId() == null || itemRequest.getQuantity() == null || itemRequest.getQuantity() <= 0) {
+                throw new AppException(ErrorCode.INVALID_REQUEST);
+            }
+            OrderDetail orderDetail = orderDetailRepository.findById(itemRequest.getOrderDetailId())
+                    .orElseThrow(() -> new AppException(ErrorCode.INVALID_REQUEST));
+            if (orderDetail.getOrder() == null || !order.getOrderID().equals(orderDetail.getOrder().getOrderID())) {
+                throw new AppException(ErrorCode.INVALID_REQUEST);
+            }
+            ReturnExchangeItem item = new ReturnExchangeItem();
+            item.setReturnExchange(returnExchange);
+            item.setOrderDetail(orderDetail);
+            item.setQuantity(itemRequest.getQuantity());
+            item.setItemReason(trimToNull(itemRequest.getItemReason()));
+            item.setNote(trimToNull(itemRequest.getNote()));
+            result.add(item);
+        }
+        return result;
+    }
+
+    private String trimToNull(String value) {
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+        return value.trim();
     }
 }
