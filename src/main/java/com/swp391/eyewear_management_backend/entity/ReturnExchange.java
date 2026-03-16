@@ -47,7 +47,7 @@ public class ReturnExchange {
     @Column(name = "Return_Reason", columnDefinition = "NVARCHAR(500)")
     private String returnReason;
 
-    @Column(name = "Customer_Evidence_URL", columnDefinition = "NVARCHAR(500)")
+    @Transient
     private String customerEvidenceUrl;
 
     @Column(name = "Return_Type", nullable = false, columnDefinition = "NVARCHAR(20)")
@@ -64,6 +64,9 @@ public class ReturnExchange {
 
     @Column(name = "Refund_Account_Number", columnDefinition = "NVARCHAR(100)")
     private String refundAccountNumber;
+
+    @Column(name = "Customer_Account_QR", columnDefinition = "NVARCHAR(500)")
+    private String customerAccountQr;
 
     @Column(name = "Refund_Account_Name", columnDefinition = "NVARCHAR(100)")
     private String refundAccountName;

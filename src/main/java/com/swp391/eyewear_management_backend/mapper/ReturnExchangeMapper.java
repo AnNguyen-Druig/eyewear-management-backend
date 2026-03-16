@@ -19,7 +19,6 @@ public interface ReturnExchangeMapper {
     @Mapping(source = "requestScope", target = "requestScope")
     @Mapping(source = "requestNote", target = "requestNote")
     @Mapping(source = "returnReason", target = "returnReason")
-    @Mapping(source = "customerEvidenceUrl", target = "customerEvidenceUrl")
     @Mapping(source = "refundAmount", target = "refundAmount")
     @Mapping(source = "refundMethod", target = "refundMethod")
     @Mapping(source = "refundAccountNumber", target = "refundAccountNumber")

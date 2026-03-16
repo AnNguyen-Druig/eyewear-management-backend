@@ -20,7 +20,7 @@ import lombok.ToString;
 @Getter
 @Setter
 @NoArgsConstructor
-@ToString(exclude = {"returnExchange", "orderDetail"})
+@ToString(exclude = {"returnExchange", "orderDetail", "prescriptionOrderDetail"})
 public class ReturnExchangeItem {
 
     @Id
@@ -37,11 +37,23 @@ public class ReturnExchangeItem {
     @ManyToOne(fetch = FetchType.LAZY, cascade = {
             CascadeType.PERSIST, CascadeType.MERGE, CascadeType.DETACH, CascadeType.REFRESH
     })
-    @JoinColumn(name = "Order_Detail_ID", nullable = false)
+    @JoinColumn(name = "Order_Detail_ID")
     private OrderDetail orderDetail;
+
+    @ManyToOne(fetch = FetchType.LAZY, cascade = {
+            CascadeType.PERSIST, CascadeType.MERGE, CascadeType.DETACH, CascadeType.REFRESH
+    })
+    @JoinColumn(name = "Prescription_Order_Detail_ID")
+    private PrescriptionOrderDetail prescriptionOrderDetail;
+
+    @Column(name = "Item_Source", nullable = false, columnDefinition = "NVARCHAR(40)")
+    private String itemSource;
 
     @Column(name = "Quantity", nullable = false)
     private Integer quantity;
+
+    @Column(name = "Item_Evidence_URL", columnDefinition = "NVARCHAR(500)")
+    private String itemEvidenceUrl;
 
     @Column(name = "Item_Reason", columnDefinition = "NVARCHAR(500)")
     private String itemReason;

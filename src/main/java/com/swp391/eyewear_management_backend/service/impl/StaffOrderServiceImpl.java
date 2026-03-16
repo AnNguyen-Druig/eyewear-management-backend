@@ -1122,7 +1122,7 @@ public class StaffOrderServiceImpl implements StaffOrderService {
                 .requestScope(returnExchange.getRequestScope())
                 .requestNote(returnExchange.getRequestNote())
                 .returnReason(returnExchange.getReturnReason())
-                .customerEvidenceUrl(returnExchange.getCustomerEvidenceUrl())
+                .customerAccountQr(returnExchange.getCustomerAccountQr())
                 .refundAmount(returnExchange.getRefundAmount())
                 .refundMethod(returnExchange.getRefundMethod())
                 .refundAccountNumber(returnExchange.getRefundAccountNumber())

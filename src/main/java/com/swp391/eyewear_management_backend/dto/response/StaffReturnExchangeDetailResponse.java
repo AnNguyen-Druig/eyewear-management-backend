@@ -53,6 +53,7 @@ public class StaffReturnExchangeDetailResponse {
     private BigDecimal refundAmount;
     private String refundMethod;
     private String refundAccountNumber;
+    private String customerAccountQr;
     private String refundAccountName;
     private String refundReferenceCode;
     private String staffRefundEvidenceUrl;
