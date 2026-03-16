@@ -7,7 +7,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
-
 import java.util.List;
 import java.util.Optional;
 
@@ -32,6 +31,7 @@ public interface ReturnExchangeRepo extends JpaRepository<ReturnExchange, Long> 
     /**
      * Kiểm tra xem Order Detail đã có return/exchange chưa
      */
+
     boolean existsByOrder_OrderIDAndReturnTypeAndRequestScopeAndStatusIn(
             Long orderId,
             String returnType,
@@ -81,4 +81,10 @@ public interface ReturnExchangeRepo extends JpaRepository<ReturnExchange, Long> 
           )
     """, nativeQuery = true)
     List<ReturnExchangeOrderSummaryProjection> findLatestSummariesByOrderIds(@Param("orderIds") List<Long> orderIds);
+
+//    @Query("SELECT COUNT(re) > 0 FROM ReturnExchange re JOIN re.items i WHERE i.orderDetail.orderDetailID = :orderDetailId")
+//    boolean existsByOrderDetailId(@org.springframework.data.repository.query.Param("orderDetailId") Long orderDetailId);
+
+    Optional<ReturnExchange> findTopByReturnCodeStartingWithOrderByReturnCodeDesc(String prefix);
+
 }

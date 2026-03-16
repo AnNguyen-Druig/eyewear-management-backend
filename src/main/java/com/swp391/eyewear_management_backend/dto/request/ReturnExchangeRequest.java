@@ -1,9 +1,10 @@
 package com.swp391.eyewear_management_backend.dto.request;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
-
 import java.math.BigDecimal;
 import java.util.List;
 
@@ -15,15 +16,21 @@ import java.util.List;
 public class ReturnExchangeRequest {
 
     @JsonProperty("order_id")
+    // NOT NULL trong DB
+    @NotNull(message = "Mã đơn hàng không được để trống")
     Long orderId;
 
     @JsonProperty("order_detail_id")
     Long orderDetailId;
 
     @JsonProperty("return_type")
+    // NOT NULL trong DB
+    @NotBlank(message = "Loại yêu cầu đổi trả (Return Type) không được để trống")
     String returnType;
 
     @JsonProperty("request_scope")
+    // NOT NULL trong DB
+    @NotBlank(message = "Phạm vi yêu cầu (Request Scope) không được để trống")
     String requestScope;
 
     @JsonProperty("request_note")
@@ -56,3 +63,4 @@ public class ReturnExchangeRequest {
     @JsonProperty("items")
     List<ReturnExchangeItemRequest> items;
 }
+

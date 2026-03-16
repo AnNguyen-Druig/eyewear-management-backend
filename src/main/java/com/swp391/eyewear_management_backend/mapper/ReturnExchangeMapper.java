@@ -1,12 +1,15 @@
 package com.swp391.eyewear_management_backend.mapper;
 
+import com.swp391.eyewear_management_backend.dto.response.ReturnExchangeItemResponse;
 import com.swp391.eyewear_management_backend.dto.response.ReturnExchangeResponse;
 import com.swp391.eyewear_management_backend.entity.ReturnExchange;
+import com.swp391.eyewear_management_backend.entity.ReturnExchangeItem; // Đảm bảo import đúng entity con
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
 @Mapper(componentModel = "spring")
 public interface ReturnExchangeMapper {
+
     
     @Mapping(source = "returnExchangeID", target = "returnExchangeID")
     @Mapping(source = "returnCode", target = "returnCode")
@@ -31,4 +34,9 @@ public interface ReturnExchangeMapper {
     @Mapping(source = "processedBy.userId", target = "processedById")
     @Mapping(source = "rejectReason", target = "rejectReason")
     ReturnExchangeResponse toReturnExchangeResponse(ReturnExchange returnExchange);
+
+    // --- 2. Map cho các Item con bên trong ---
+    @Mapping(source = "orderDetail.orderDetailID", target = "orderDetailId") // Giả sử entity ReturnExchangeItem có object OrderDetail
+    // Các trường như quantity, note, itemReason trùng tên sẽ tự động map
+    ReturnExchangeItemResponse toReturnExchangeItemResponse(ReturnExchangeItem item);
 }

@@ -15,19 +15,19 @@ import java.time.LocalDateTime;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class ReturnExchangeResponse {
-    
+
     @JsonProperty("return_exchange_id")
     Long returnExchangeID;
-    
+
     @JsonProperty("return_code")
     String returnCode;
-    
+
     @JsonProperty("order_id")
     Long orderId;
-    
+
     @JsonProperty("user_id")
     Long userId;
-    
+
     @JsonProperty("return_type")
     String returnType;
 
@@ -36,22 +36,22 @@ public class ReturnExchangeResponse {
 
     @JsonProperty("request_note")
     String requestNote;
-    
+
     @JsonProperty("return_reason")
     String returnReason;
-    
+
     @JsonProperty("customer_evidence_url")
     String customerEvidenceUrl;
-    
+
     @JsonProperty("refund_amount")
     BigDecimal refundAmount;
-    
+
     @JsonProperty("refund_method")
     String refundMethod;
-    
+
     @JsonProperty("refund_account_number")
     String refundAccountNumber;
-    
+
     @JsonProperty("refund_account_name")
     String refundAccountName;
 
@@ -63,16 +63,16 @@ public class ReturnExchangeResponse {
 
     @JsonProperty("status")
     String status;
-    
+
     @JsonProperty("request_date")
     LocalDateTime requestDate;
-    
+
     @JsonProperty("approved_date")
     LocalDateTime approvedDate;
-    
+
     @JsonProperty("approved_by_id")
     Long approvedById;
-    
+
     @JsonProperty("processed_date")
     LocalDateTime processedDate;
 

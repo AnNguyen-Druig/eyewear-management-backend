@@ -27,7 +27,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.HttpClientErrorException;
-
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -128,6 +127,13 @@ public class StaffOrderServiceImpl implements StaffOrderService {
         return returnExchangeRepo.findStaffReturnExchangeSummaries().stream()
                 .map(this::mapToStaffReturnExchangeListResponse)
                 .toList();
+    }
+
+    private String resolveReturnType(ReturnExchange returnExchange) {
+        if (returnExchange.getRefundAmount() != null || StringUtils.hasText(returnExchange.getRefundMethod())) {
+            return "RETURN";
+        }
+        return "EXCHANGE";
     }
 
     @Override
