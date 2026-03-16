@@ -31,6 +31,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -96,7 +97,10 @@ public class StaffOrderServiceImpl implements StaffOrderService {
     private static final String RETURN_STATUS_REJECTED = "REJECTED";
 
     private static final String RETURN_ACTION_APPROVE = "APPROVE";
+    private static final String RETURN_ACTION_APPROVED = "APPROVED";
     private static final String RETURN_ACTION_REJECT = "REJECT";
+    private static final String RETURN_ACTION_REJECTED = "REJECTED";
+    private static final long RETURN_APPROVAL_WINDOW_DAYS = 7;
 
     //Hàm này dùng để xác minh/ktra ai là người đang thao tác
     private User getCurrentUser() {
@@ -1089,6 +1093,8 @@ public class StaffOrderServiceImpl implements StaffOrderService {
         }
 
         StaffOrderDetailResponse orderDetailResponse = getOrderDetailForSalesStaff(orderId);
+        ShippingInfo shippingInfo = returnExchange.getOrder() == null ? null : returnExchange.getOrder().getShippingInfo();
+        LocalDateTime deliveredAt = shippingInfo == null ? null : shippingInfo.getDeliveredAt();
 
         return StaffReturnExchangeDetailResponse.builder()
                 .orderId(orderDetailResponse.getOrderId())
@@ -1100,6 +1106,8 @@ public class StaffOrderServiceImpl implements StaffOrderService {
                 .shippingStatus(orderDetailResponse.getShippingStatus())
                 .shippingFee(orderDetailResponse.getShippingFee())
                 .expectedDeliveryAt(orderDetailResponse.getExpectedDeliveryAt())
+                .deliveredAt(deliveredAt)
+                .remainingTimeValid(calculateRemainingTimeValid(deliveredAt))
                 .isPastExpectedDeliveryAt(orderDetailResponse.getIsPastExpectedDeliveryAt())
                 .hasPrescriptionItem(orderDetailResponse.getHasPrescriptionItem())
                 .requiresFinalPayment(orderDetailResponse.getRequiresFinalPayment())
@@ -1153,26 +1161,31 @@ public class StaffOrderServiceImpl implements StaffOrderService {
                 .orElseThrow(() -> new AppException(ErrorCode.RETURN_EXCHANGE_NOT_FOUND));
 
         String action = request == null ? "" : normalize(request.getAction());
+        String targetStatus = resolveReturnStatusAction(action);
         String currentStatus = normalize(returnExchange.getStatus());
         if (!RETURN_STATUS_PENDING.equals(currentStatus)) {
             throw new AppException(ErrorCode.INVALID_REQUEST);
         }
+        if (targetStatus == null) {
+            throw new AppException(ErrorCode.INVALID_REQUEST);
+        }
 
-        switch (action) {
-            case RETURN_ACTION_APPROVE -> {
+        switch (targetStatus) {
+            case RETURN_STATUS_APPROVED -> {
+                validateApproveWithinWindow(returnExchange);
                 returnExchange.setStatus(RETURN_STATUS_APPROVED);
                 returnExchange.setApprovedBy(getCurrentUser());
-                returnExchange.setApprovedDate(LocalDateTime.now());
+                returnExchange.setApprovedDate(LocalDateTime.now(APP_ZONE_ID));
                 returnExchange.setRejectReason(null);
             }
-            case RETURN_ACTION_REJECT -> {
+            case RETURN_STATUS_REJECTED -> {
                 String rejectReason = request == null ? "" : request.getRejectReason();
                 if (!StringUtils.hasText(rejectReason)) {
                     throw new AppException(ErrorCode.INVALID_REQUEST);
                 }
                 returnExchange.setStatus(RETURN_STATUS_REJECTED);
                 returnExchange.setApprovedBy(getCurrentUser());
-                returnExchange.setApprovedDate(LocalDateTime.now());
+                returnExchange.setApprovedDate(LocalDateTime.now(APP_ZONE_ID));
                 returnExchange.setRejectReason(rejectReason.trim());
             }
             default -> throw new AppException(ErrorCode.INVALID_REQUEST);
@@ -1180,6 +1193,41 @@ public class StaffOrderServiceImpl implements StaffOrderService {
 
         ReturnExchange savedReturnExchange = returnExchangeRepo.save(returnExchange);
         return returnExchangeMapper.toReturnExchangeResponse(savedReturnExchange);
+    }
+
+    private String resolveReturnStatusAction(String action) {
+        if (RETURN_ACTION_APPROVE.equals(action) || RETURN_ACTION_APPROVED.equals(action)) {
+            return RETURN_STATUS_APPROVED;
+        }
+        if (RETURN_ACTION_REJECT.equals(action) || RETURN_ACTION_REJECTED.equals(action)) {
+            return RETURN_STATUS_REJECTED;
+        }
+        return null;
+    }
+
+    private void validateApproveWithinWindow(ReturnExchange returnExchange) {
+        Order order = returnExchange.getOrder();
+        ShippingInfo shippingInfo = order == null ? null : order.getShippingInfo();
+        LocalDateTime deliveredAt = shippingInfo == null ? null : shippingInfo.getDeliveredAt();
+        if (deliveredAt == null) {
+            throw new AppException(ErrorCode.INVALID_REQUEST);
+        }
+
+        LocalDateTime now = LocalDateTime.now(APP_ZONE_ID);
+        LocalDateTime deadline = deliveredAt.plusDays(RETURN_APPROVAL_WINDOW_DAYS);
+        if (now.isBefore(deliveredAt) || now.isAfter(deadline)) {
+            throw new AppException(ErrorCode.INVALID_REQUEST);
+        }
+    }
+
+    private Long calculateRemainingTimeValid(LocalDateTime deliveredAt) {
+        if (deliveredAt == null) {
+            return null;
+        }
+        LocalDateTime now = LocalDateTime.now(APP_ZONE_ID);
+        LocalDateTime deadline = deliveredAt.plusDays(RETURN_APPROVAL_WINDOW_DAYS);
+        long remainingDays = ChronoUnit.DAYS.between(now, deadline);
+        return Math.max(remainingDays, 0L);
     }
 
     private StaffReturnExchangeListResponse mapToStaffReturnExchangeListResponse(StaffReturnExchangeListProjection source) {

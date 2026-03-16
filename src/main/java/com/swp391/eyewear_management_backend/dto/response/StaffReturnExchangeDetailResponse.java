@@ -23,6 +23,8 @@ public class StaffReturnExchangeDetailResponse {
     private String shippingStatus;
     private BigDecimal shippingFee;
     private LocalDateTime expectedDeliveryAt;
+    private LocalDateTime deliveredAt;
+    private Long remainingTimeValid;
     private Boolean isPastExpectedDeliveryAt;
     private Boolean hasPrescriptionItem;
     private Boolean requiresFinalPayment;

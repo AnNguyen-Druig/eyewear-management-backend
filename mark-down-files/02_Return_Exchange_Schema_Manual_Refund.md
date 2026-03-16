@@ -141,6 +141,7 @@ CREATE TABLE Return_Exchange (
                                  Refund_Account_Number NVARCHAR(100) NULL,
                                  Refund_Account_Name NVARCHAR(100) NULL,
                                  Refund_Reference_Code NVARCHAR(100) NULL,
+                                 Customer_Account_QR NVARCHAR(500) NULL,
 
     /* Evidence do STAFF upload sau khi chuyển khoản */
                                  Staff_Refund_Evidence_URL NVARCHAR(500) NULL,
