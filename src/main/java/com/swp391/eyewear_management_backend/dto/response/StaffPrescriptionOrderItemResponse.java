@@ -16,6 +16,7 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 @AllArgsConstructor
 public class StaffPrescriptionOrderItemResponse {
+    private Long prescriptionOrderDetailId;
     private Long frameId;
     private String frameName;
     private BigDecimal framePrice;

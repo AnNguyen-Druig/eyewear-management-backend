@@ -117,11 +117,11 @@ public class StaffOrderController {
                 .build());
     }
 
-    //Hàm này dùng để cập nhật Return_Exchange.Status = "APPROVED" hoặc "REJECTED", và "COMPLETED"
+    //Hàm này dùng để cập nhật Return_Exchange.Status = "APPROVED" hoặc "REJECTED" khi request đang PENDING
     @PutMapping("/return-exchange/{returnExchangeId}/status")
     public ResponseEntity<ApiResponse<ReturnExchangeResponse>> updateReturnExchangeStatus(
             @PathVariable Long returnExchangeId,
-            @RequestBody ReturnExchangeDecisionRequest request) {
+            @RequestBody @Valid ReturnExchangeDecisionRequest request) {
         ReturnExchangeResponse response = staffOrderService.updateReturnExchangeStatusForSalesStaff(returnExchangeId, request);
         return ResponseEntity.ok(ApiResponse.<ReturnExchangeResponse>builder()
                 .code(1000)

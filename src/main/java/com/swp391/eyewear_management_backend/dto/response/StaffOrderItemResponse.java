@@ -16,6 +16,7 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 @AllArgsConstructor
 public class StaffOrderItemResponse {
+    private Long orderDetailId;
     private Long productId;
     private String productName;
     private Integer quantity;

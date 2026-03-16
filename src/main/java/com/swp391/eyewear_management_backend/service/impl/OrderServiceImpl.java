@@ -747,12 +747,14 @@ public class OrderServiceImpl implements OrderService {
                 .map(this::toOrderItemResponse)
                 .toList();
 
-        List<StaffPrescriptionOrderItemResponse> prescriptionItems = mapPrescriptionItems(orderEntityId);
+        PrescriptionOrder prescriptionOrder = prescriptionOrderRepo.findByOrder_OrderID(orderEntityId).orElse(null);
+        List<StaffPrescriptionOrderItemResponse> prescriptionItems = mapPrescriptionItems(prescriptionOrder);
         boolean hasPrescriptionItem = !prescriptionItems.isEmpty();
         boolean requiresFinalPayment = isRequiresFinalPayment(order);
 
         return StaffOrderDetailResponse.builder()
                 .orderId(order.getOrderID())
+                .prescriptionOrderId(prescriptionOrder != null ? prescriptionOrder.getPrescriptionOrderID() : null)
                 .orderCode(order.getOrderCode())
                 .orderStatus(order.getOrderStatus())
                 .orderType(order.getOrderType())
@@ -783,6 +785,7 @@ public class OrderServiceImpl implements OrderService {
         Integer quantity = detail.getQuantity() == null ? 0 : detail.getQuantity();
         BigDecimal unitPrice = detail.getUnitPrice() == null ? BigDecimal.ZERO : detail.getUnitPrice();
         return StaffOrderItemResponse.builder()
+                .orderDetailId(detail.getOrderDetailID())
                 .productId(product != null ? product.getProductID() : null)
                 .productName(product != null ? product.getProductName() : null)
                 .quantity(quantity)
@@ -792,8 +795,7 @@ public class OrderServiceImpl implements OrderService {
                 .build();
     }
 
-    private List<StaffPrescriptionOrderItemResponse> mapPrescriptionItems(Long orderId) {
-        PrescriptionOrder prescriptionOrder = prescriptionOrderRepo.findByOrder_OrderID(orderId).orElse(null);
+    private List<StaffPrescriptionOrderItemResponse> mapPrescriptionItems(PrescriptionOrder prescriptionOrder) {
         if (prescriptionOrder == null || prescriptionOrder.getPrescriptionOrderDetails() == null) {
             return List.of();
         }
@@ -840,6 +842,7 @@ public class OrderServiceImpl implements OrderService {
 
             RxAggregate aggregate = aggregates.computeIfAbsent(key, k -> new RxAggregate(
                     StaffPrescriptionOrderItemResponse.builder()
+                            .prescriptionOrderDetailId(detail.getPrescriptionOrderDetailID())
                             .frameId(frameId)
                             .frameName(frameName)
                             .framePrice(framePrice)

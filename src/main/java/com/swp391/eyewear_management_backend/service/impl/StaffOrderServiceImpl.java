@@ -94,11 +94,9 @@ public class StaffOrderServiceImpl implements StaffOrderService {
     private static final String RETURN_STATUS_PENDING = "PENDING";
     private static final String RETURN_STATUS_APPROVED = "APPROVED";
     private static final String RETURN_STATUS_REJECTED = "REJECTED";
-    private static final String RETURN_STATUS_COMPLETED = "COMPLETED";
 
     private static final String RETURN_ACTION_APPROVE = "APPROVE";
     private static final String RETURN_ACTION_REJECT = "REJECT";
-    private static final String RETURN_ACTION_COMPLETE = "COMPLETE";
 
     //Hàm này dùng để xác minh/ktra ai là người đang thao tác
     private User getCurrentUser() {
@@ -1156,21 +1154,18 @@ public class StaffOrderServiceImpl implements StaffOrderService {
 
         String action = request == null ? "" : normalize(request.getAction());
         String currentStatus = normalize(returnExchange.getStatus());
+        if (!RETURN_STATUS_PENDING.equals(currentStatus)) {
+            throw new AppException(ErrorCode.INVALID_REQUEST);
+        }
 
         switch (action) {
             case RETURN_ACTION_APPROVE -> {
-                if (!RETURN_STATUS_PENDING.equals(currentStatus)) {
-                    throw new AppException(ErrorCode.INVALID_REQUEST);
-                }
                 returnExchange.setStatus(RETURN_STATUS_APPROVED);
                 returnExchange.setApprovedBy(getCurrentUser());
                 returnExchange.setApprovedDate(LocalDateTime.now());
                 returnExchange.setRejectReason(null);
             }
             case RETURN_ACTION_REJECT -> {
-                if (!RETURN_STATUS_PENDING.equals(currentStatus)) {
-                    throw new AppException(ErrorCode.INVALID_REQUEST);
-                }
                 String rejectReason = request == null ? "" : request.getRejectReason();
                 if (!StringUtils.hasText(rejectReason)) {
                     throw new AppException(ErrorCode.INVALID_REQUEST);
@@ -1179,14 +1174,6 @@ public class StaffOrderServiceImpl implements StaffOrderService {
                 returnExchange.setApprovedBy(getCurrentUser());
                 returnExchange.setApprovedDate(LocalDateTime.now());
                 returnExchange.setRejectReason(rejectReason.trim());
-            }
-            case RETURN_ACTION_COMPLETE -> {
-                if (!RETURN_STATUS_APPROVED.equals(currentStatus)) {
-                    throw new AppException(ErrorCode.INVALID_REQUEST);
-                }
-                returnExchange.setStatus(RETURN_STATUS_COMPLETED);
-                returnExchange.setProcessedBy(getCurrentUser());
-                returnExchange.setProcessedDate(LocalDateTime.now());
             }
             default -> throw new AppException(ErrorCode.INVALID_REQUEST);
         }

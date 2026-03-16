@@ -637,139 +637,174 @@ CREATE TABLE Order_Processing (
 );
 GO
 
-CREATE TABLE dbo.Return_Exchange (
-                                     Return_Exchange_ID BIGINT IDENTITY(1,1) NOT NULL,
-                                     Order_ID BIGINT NOT NULL,
-                                     User_ID INT NOT NULL,
-                                     Return_Code NVARCHAR(50) NOT NULL,
-                                     Request_Date DATETIME NOT NULL
-                                         CONSTRAINT DF_ReturnExchange_RequestDate DEFAULT GETDATE(),
-                                     Request_Note NVARCHAR(1000) NULL,
-                                     Return_Reason NVARCHAR(500) NULL,
-                                     Customer_Evidence_URL NVARCHAR(500) NULL,
-                                     Return_Type NVARCHAR(20) NOT NULL,
-                                     Request_Scope NVARCHAR(10) NOT NULL
-        CONSTRAINT DF_ReturnExchange_RequestScope DEFAULT N'ITEM',
-                                     Refund_Amount DECIMAL(15,2) NULL,
-                                     Refund_Method NVARCHAR(30) NULL,
-                                     Refund_Account_Number NVARCHAR(100) NULL,
-                                     Refund_Account_Name NVARCHAR(100) NULL,
-                                     Refund_Reference_Code NVARCHAR(100) NULL,
-                                     Staff_Refund_Evidence_URL NVARCHAR(500) NULL,
-                                     Status NVARCHAR(30) NOT NULL,
-                                     Approved_By INT NULL,
-                                     Approved_Date DATETIME NULL,
-                                     Processed_By INT NULL,
-                                     Processed_Date DATETIME NULL,
-                                     Reject_Reason NVARCHAR(500) NULL,
+CREATE TABLE Return_Exchange (
+                                 Return_Exchange_ID BIGINT IDENTITY(1,1) PRIMARY KEY,
+                                 Order_ID BIGINT NOT NULL,
+                                 User_ID BIGINT NOT NULL,
+                                 Return_Code NVARCHAR(50) NOT NULL UNIQUE,
+                                 Request_Date DATETIME NOT NULL DEFAULT GETDATE(),
 
-                                     CONSTRAINT PK_Return_Exchange
-                                         PRIMARY KEY (Return_Exchange_ID),
+    /* Ghi chú tổng quát cho request */
+                                 Request_Note NVARCHAR(1000) NULL,
 
-                                     CONSTRAINT UQ_ReturnExchange_ReturnCode
-                                         UNIQUE (Return_Code),
+    /* Lý do khách tạo request */
+                                 Return_Reason NVARCHAR(500) NULL,
 
-                                     CONSTRAINT FK_ReturnExchange_Order
-                                         FOREIGN KEY (Order_ID) REFERENCES dbo.[Order](Order_ID),
+    /* REFUND / RETURN / WARRANTY */
+                                 Return_Type NVARCHAR(20) NOT NULL,
 
-                                     CONSTRAINT FK_ReturnExchange_User
-                                         FOREIGN KEY (User_ID) REFERENCES dbo.[User](User_ID),
+    /* ORDER / ITEM */
+                                 Request_Scope NVARCHAR(10) NOT NULL DEFAULT N'ITEM',
 
-                                     CONSTRAINT FK_ReturnExchange_ApprovedBy
-                                         FOREIGN KEY (Approved_By) REFERENCES dbo.[User](User_ID),
+    /* Thông tin refund thủ công */
+                                 Refund_Amount DECIMAL(15,2) NULL,
+                                 Refund_Method NVARCHAR(30) NULL,
+                                 Refund_Account_Number NVARCHAR(100) NULL,
+                                 Refund_Account_Name NVARCHAR(100) NULL,
+                                 Refund_Reference_Code NVARCHAR(100) NULL,
 
-                                     CONSTRAINT FK_ReturnExchange_ProcessedBy
-                                         FOREIGN KEY (Processed_By) REFERENCES dbo.[User](User_ID),
+    /* Evidence do STAFF upload sau khi chuyển khoản */
+                                 Staff_Refund_Evidence_URL NVARCHAR(500) NULL,
 
-                                     CONSTRAINT CK_ReturnExchange_Status
-                                         CHECK (Status IN (
-                                                           N'PENDING', N'APPROVED', N'REJECTED', N'COMPLETED'
-                                             )),
+    /* PENDING / APPROVED / REJECTED / COMPLETED */
+                                 Status NVARCHAR(30) NOT NULL,
 
-                                     CONSTRAINT CK_ReturnExchange_ReturnType
-                                         CHECK (Return_Type IN (
-                                                                N'REFUND', N'RETURN', N'WARRANTY'
-                                             )),
+    /* Người duyệt request */
+                                 Approved_By BIGINT NULL,
+                                 Approved_Date DATETIME NULL,
 
-                                     CONSTRAINT CK_ReturnExchange_RequestScope
-                                         CHECK (Request_Scope IN (
-                                                                  N'ORDER', N'ITEM'
-                                             )),
+    /* Người thực hiện hoàn tiền thủ công */
+                                 Processed_By BIGINT NULL,
+                                 Processed_Date DATETIME NULL,
 
-                                     CONSTRAINT CK_ReturnExchange_ScopeByType
-                                         CHECK (
-                                             (Return_Type = N'REFUND' AND Request_Scope = N'ORDER')
-                                                 OR
-                                             (Return_Type IN (N'RETURN', N'WARRANTY') AND Request_Scope = N'ITEM')
-                                             ),
+    /* Lý do từ chối nếu REJECTED */
+                                 Reject_Reason NVARCHAR(500) NULL,
 
-                                     CONSTRAINT CK_ReturnExchange_RefundAmount
-                                         CHECK (Refund_Amount IS NULL OR Refund_Amount >= 0),
+                                 CONSTRAINT FK_ReturnExchange_Order
+                                     FOREIGN KEY (Order_ID) REFERENCES [Order](Order_ID),
 
-                                     CONSTRAINT CK_ReturnExchange_RefundMethod
-                                         CHECK (
-                                             Refund_Method IS NULL
-                                                 OR Refund_Method IN (
-                                                                      N'BANK_TRANSFER', N'EWALLET', N'OTHER_MANUAL'
-                                                 )
-                                             ),
+                                 CONSTRAINT FK_ReturnExchange_User
+                                     FOREIGN KEY (User_ID) REFERENCES [User](User_ID),
 
-                                     CONSTRAINT CK_ReturnExchange_RejectReason_Required
-                                         CHECK (
-                                             Status <> N'REJECTED'
-                                                 OR (Reject_Reason IS NOT NULL AND LTRIM(RTRIM(Reject_Reason)) <> N'')
-                                             ),
+                                 CONSTRAINT FK_ReturnExchange_ApprovedBy
+                                     FOREIGN KEY (Approved_By) REFERENCES [User](User_ID),
 
-                                     CONSTRAINT CK_ReturnExchange_Approval_Required
-                                         CHECK (
-                                             Status NOT IN (N'APPROVED', N'COMPLETED')
-                                                 OR (Approved_By IS NOT NULL AND Approved_Date IS NOT NULL)
-                                             ),
+                                 CONSTRAINT FK_ReturnExchange_ProcessedBy
+                                     FOREIGN KEY (Processed_By) REFERENCES [User](User_ID),
 
-                                     CONSTRAINT CK_ReturnExchange_CompletedRefund_Required
-                                         CHECK (
-                                             Status <> N'COMPLETED'
-                                                 OR Return_Type = N'WARRANTY'
-                                                 OR (
-                                                 Refund_Amount IS NOT NULL
-                                                     AND Refund_Amount > 0
-                                                     AND Refund_Method IS NOT NULL
-                                                     AND LTRIM(RTRIM(Refund_Method)) <> N''
-                                                     AND Refund_Account_Number IS NOT NULL
-                                                     AND LTRIM(RTRIM(Refund_Account_Number)) <> N''
-                                                     AND Staff_Refund_Evidence_URL IS NOT NULL
-                                                     AND LTRIM(RTRIM(Staff_Refund_Evidence_URL)) <> N''
-                                                     AND Processed_By IS NOT NULL
-                                                     AND Processed_Date IS NOT NULL
-                                                 )
+                                 CONSTRAINT CK_ReturnExchange_Status
+                                     CHECK (Status IN (
+                                                       N'PENDING', N'APPROVED', N'REJECTED', N'COMPLETED'
+                                         )),
+
+                                 CONSTRAINT CK_ReturnExchange_ReturnType
+                                     CHECK (Return_Type IN (
+                                                            N'REFUND', N'RETURN', N'WARRANTY'
+                                         )),
+
+                                 CONSTRAINT CK_ReturnExchange_RequestScope
+                                     CHECK (Request_Scope IN (N'ORDER', N'ITEM')),
+
+    /* REFUND = ORDER, RETURN/WARRANTY = ITEM */
+                                 CONSTRAINT CK_ReturnExchange_ScopeByType
+                                     CHECK (
+                                         (Return_Type = N'REFUND' AND Request_Scope = N'ORDER')
+                                             OR
+                                         (Return_Type IN (N'RETURN', N'WARRANTY') AND Request_Scope = N'ITEM')
+                                         ),
+
+                                 CONSTRAINT CK_ReturnExchange_RefundAmount
+                                     CHECK (Refund_Amount IS NULL OR Refund_Amount >= 0),
+
+    /* Nếu REJECTED thì phải có lý do từ chối */
+                                 CONSTRAINT CK_ReturnExchange_RejectReason_Required
+                                     CHECK (
+                                         Status <> N'REJECTED'
+                                             OR (Reject_Reason IS NOT NULL AND LTRIM(RTRIM(Reject_Reason)) <> N'')
+                                         ),
+
+    /* Nếu APPROVED hoặc COMPLETED thì phải có người duyệt */
+                                 CONSTRAINT CK_ReturnExchange_Approval_Required
+                                     CHECK (
+                                         Status NOT IN (N'APPROVED', N'COMPLETED')
+                                             OR (Approved_By IS NOT NULL AND Approved_Date IS NOT NULL)
+                                         ),
+
+    /* Nếu COMPLETED và là nghiệp vụ có hoàn tiền thì phải có dữ liệu hoàn tiền + evidence */
+                                 CONSTRAINT CK_ReturnExchange_CompletedRefund_Required
+                                     CHECK (
+                                         Status <> N'COMPLETED'
+                                             OR Return_Type = N'WARRANTY'
+                                             OR (
+                                             Refund_Amount IS NOT NULL
+                                                 AND Refund_Amount > 0
+                                                 AND Refund_Method IS NOT NULL
+                                                 AND LTRIM(RTRIM(Refund_Method)) <> N''
+                                                 AND Refund_Account_Number IS NOT NULL
+                                                 AND LTRIM(RTRIM(Refund_Account_Number)) <> N''
+                                                 AND Staff_Refund_Evidence_URL IS NOT NULL
+                                                 AND LTRIM(RTRIM(Staff_Refund_Evidence_URL)) <> N''
+                                                 AND Processed_By IS NOT NULL
+                                                 AND Processed_Date IS NOT NULL
                                              )
+                                         )
 );
 GO
 
-CREATE TABLE dbo.Return_Exchange_Item (
-                                          Return_Exchange_Item_ID BIGINT IDENTITY(1,1) NOT NULL,
-                                          Return_Exchange_ID BIGINT NOT NULL,
-                                          Order_Detail_ID BIGINT NOT NULL,
-                                          Quantity INT NOT NULL,
-                                          Item_Reason NVARCHAR(500) NULL,
-                                          Note NVARCHAR(500) NULL,
+/* =========================================================
+   2) DETAIL TABLE: Return_Exchange_Item
+   ========================================================= */
+CREATE TABLE Return_Exchange_Item (
+                                      Return_Exchange_Item_ID BIGINT IDENTITY(1,1) PRIMARY KEY,
+                                      Return_Exchange_ID BIGINT NOT NULL,
 
-                                          CONSTRAINT PK_Return_Exchange_Item
-                                              PRIMARY KEY (Return_Exchange_Item_ID),
+    /* Nguồn item cần xử lý */
+                                      Item_Source NVARCHAR(40) NOT NULL DEFAULT N'ORDER_DETAIL',
 
-                                          CONSTRAINT FK_ReturnExchangeItem_ReturnExchange
-                                              FOREIGN KEY (Return_Exchange_ID)
-                                                  REFERENCES dbo.Return_Exchange(Return_Exchange_ID),
+    /* Item thường */
+                                      Order_Detail_ID BIGINT NULL,
 
-                                          CONSTRAINT FK_ReturnExchangeItem_OrderDetail
-                                              FOREIGN KEY (Order_Detail_ID)
-                                                  REFERENCES dbo.Order_Detail(Order_Detail_ID),
+    /* Item prescription frame+lens */
+                                      Prescription_Order_Detail_ID BIGINT NULL,
 
-                                          CONSTRAINT CK_ReturnExchangeItem_Quantity
-                                              CHECK (Quantity > 0),
+                                      Quantity INT NOT NULL,
 
-                                          CONSTRAINT UQ_ReturnExchangeItem_ReturnExchange_OrderDetail
-                                              UNIQUE (Return_Exchange_ID, Order_Detail_ID)
+    /* Evidence do CUSTOMER upload cho từng item */
+                                      Item_Evidence_URL NVARCHAR(500) NULL,
+
+    /* Lý do riêng cho item nếu cần */
+                                      Item_Reason NVARCHAR(500) NULL,
+
+                                      Note NVARCHAR(500) NULL,
+
+                                      CONSTRAINT FK_ReturnExchangeItem_ReturnExchange
+                                          FOREIGN KEY (Return_Exchange_ID)
+                                              REFERENCES Return_Exchange(Return_Exchange_ID),
+
+                                      CONSTRAINT FK_ReturnExchangeItem_OrderDetail
+                                          FOREIGN KEY (Order_Detail_ID)
+                                              REFERENCES Order_Detail(Order_Detail_ID),
+
+                                      CONSTRAINT FK_ReturnExchangeItem_PrescriptionOrderDetail
+                                          FOREIGN KEY (Prescription_Order_Detail_ID)
+                                              REFERENCES Prescription_Order_Detail(Prescription_Order_Detail_ID),
+
+                                      CONSTRAINT CK_ReturnExchangeItem_ItemSource
+                                          CHECK (Item_Source IN (N'ORDER_DETAIL', N'PRESCRIPTION_ORDER_DETAIL')),
+
+                                      CONSTRAINT CK_ReturnExchangeItem_ExactlyOneDetail
+                                          CHECK (
+                                              (Item_Source = N'ORDER_DETAIL'
+                                                  AND Order_Detail_ID IS NOT NULL
+                                                  AND Prescription_Order_Detail_ID IS NULL)
+                                                  OR
+                                              (Item_Source = N'PRESCRIPTION_ORDER_DETAIL'
+                                                  AND Order_Detail_ID IS NULL
+                                                  AND Prescription_Order_Detail_ID IS NOT NULL)
+                                              ),
+
+                                      CONSTRAINT CK_ReturnExchangeItem_Quantity
+                                          CHECK (Quantity > 0)
 );
 GO
 

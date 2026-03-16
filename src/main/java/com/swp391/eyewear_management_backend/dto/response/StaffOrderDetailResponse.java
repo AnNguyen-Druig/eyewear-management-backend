@@ -20,6 +20,7 @@ import java.util.List;
 public class StaffOrderDetailResponse {
     //Thông tin đơn hàng
     private Long orderId;
+    private Long prescriptionOrderId;
     private String orderCode;
     private String orderStatus;
     private String orderType;
