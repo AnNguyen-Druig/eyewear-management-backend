@@ -17,4 +17,5 @@ public class ProductDetailResponse {
     private List<String> imageUrls;
     // Thêm trường availableQuantity
     private Integer availableQuantity;
+    private Boolean allowPreorder;
 }

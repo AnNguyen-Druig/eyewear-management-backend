@@ -21,7 +21,7 @@ public class PrescriptionOrderDetail {
     @ManyToOne(fetch = FetchType.LAZY, cascade = {
             CascadeType.PERSIST, CascadeType.MERGE, CascadeType.DETACH, CascadeType.REFRESH
     })
-    @JoinColumn(name = "Prescription_Order_ID", nullable = false)
+    @JoinColumn(name = "Prescription_Order_ID")
     private PrescriptionOrder prescriptionOrder;
 
     @ManyToOne(fetch = FetchType.LAZY, cascade = {
