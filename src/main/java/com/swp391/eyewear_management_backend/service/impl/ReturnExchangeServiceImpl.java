@@ -258,7 +258,7 @@ public class ReturnExchangeServiceImpl implements ReturnExchangeService {
                 itemIndex++;
             }
         }
-        else if ("ORDER".equalsIgnoreCase(request.getRequestScope())) {
+        if ("ORDER".equalsIgnoreCase(request.getRequestScope())) {
             // Nếu trả nguyên toàn bộ đơn hàng (Scope là ORDER)
             refundAmount = order.getTotalAmount();
         }
