@@ -11,10 +11,12 @@ public interface ReturnExchangeService {
     /**
      * Tạo yêu cầu đổi trả mới
      * @param request Thông tin đổi trả
-     * @param imageFile File ảnh đính kèm
+     * @param itemImages Danh sách ảnh của các item
+     * @param customerImageQr Ảnh QR code của khách hàng
+     *
      * @return ReturnExchangeResponse
      */
-    String createReturnExchange(ReturnExchangeRequest request, List<MultipartFile> itemImages);
+    String createReturnExchange(ReturnExchangeRequest request, List<MultipartFile> itemImages, MultipartFile customerImageQr);
     /**
      * Lấy chi tiết một yêu cầu đổi trả
      * @param returnExchangeId ID của return/exchange

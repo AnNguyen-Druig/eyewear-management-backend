@@ -11,6 +11,7 @@ import com.swp391.eyewear_management_backend.repository.OrderDetailRepo;
 import com.swp391.eyewear_management_backend.repository.OrderRepo;
 import com.swp391.eyewear_management_backend.repository.ReturnExchangeRepo;
 import com.swp391.eyewear_management_backend.repository.UserRepo;
+import com.swp391.eyewear_management_backend.repository.PrescriptionOrderRepo;
 import com.swp391.eyewear_management_backend.service.ImageUploadService;
 import com.swp391.eyewear_management_backend.service.ReturnExchangeService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -55,6 +56,9 @@ public class ReturnExchangeServiceImpl implements ReturnExchangeService {
 
     @Autowired
     private ImageUploadService imageUploadService;
+
+    @Autowired
+    private PrescriptionOrderRepo prescriptionOrderRepository;
 
     /**
      * Lấy user hiện tại từ security context
@@ -113,15 +117,23 @@ public class ReturnExchangeServiceImpl implements ReturnExchangeService {
     }
 
     @Override
-    public String createReturnExchange(ReturnExchangeRequest request, List<MultipartFile> itemImages) {
+    public String createReturnExchange(ReturnExchangeRequest request, List<MultipartFile> itemImages, MultipartFile customerImageQr) {
         User currentUser = getCurrentUser();
 
         // 1. Kiểm tra Đơn hàng
         Order order = orderRepository.findById(request.getOrderId())
                 .orElseThrow(() -> new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION)); // Đổi mã lỗi tương ứng ORDER_NOT_FOUND
 
-        if (!order.getOrderStatus().equals("COMPLETED")) {
+        if (!"COMPLETED".equalsIgnoreCase(order.getOrderStatus())) {
             throw new AppException(ErrorCode.RETURN_EXCHANGE_NOT_FIT);
+        }
+
+        // Kiểm tra quá 7 ngày kể từ ngày giao hàng dự kiến (Expected_Delivery_At)
+        if (order.getShippingInfo() != null && order.getShippingInfo().getExpectedDeliveryAt() != null) {
+            LocalDateTime expectedDelivery = order.getShippingInfo().getExpectedDeliveryAt();
+            if (LocalDateTime.now().isAfter(expectedDelivery.plusDays(7))) {
+                throw new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION); // Cần đổi thành lỗi quá hạn đổi trả
+            }
         }
 
         if ("RETURN".equalsIgnoreCase(request.getReturnType()) || "REFUND".equalsIgnoreCase(request.getReturnType())) {
@@ -152,48 +164,82 @@ public class ReturnExchangeServiceImpl implements ReturnExchangeService {
         returnExchange.setRefundMethod(request.getRefundMethod());
         returnExchange.setRefundAccountNumber(request.getRefundAccountNumber());
         returnExchange.setRefundAccountName(request.getRefundAccountName());
-
-        // Bỏ set ảnh cho object cha: returnExchange.setCustomerEvidenceUrl(null);
         returnExchange.setStatus("PENDING");
 
-        // 3. Xử lý các Items con
+        // 3. Chuẩn bị danh sách chi tiết đơn hàng để dò tìm tự động
+        List<OrderDetail> normalDetails = order.getOrderDetails() != null ? order.getOrderDetails() : new ArrayList<>();
+        List<PrescriptionOrderDetail> prescriptionDetails = new ArrayList<>();
+
+        // Entity Order có @OneToOne PrescriptionOrder, lấy ra danh sách chi tiết kính thuốc nếu có
+        if (order.getPrescriptionOrder() != null && order.getPrescriptionOrder().getPrescriptionOrderDetails() != null) {
+            prescriptionDetails = order.getPrescriptionOrder().getPrescriptionOrderDetails();
+        }
+
+        // 4. Xử lý các Items con
         List<ReturnExchangeItem> items = new ArrayList<>();
         BigDecimal refundAmount = BigDecimal.ZERO;
 
         if (request.getItems() != null && !request.getItems().isEmpty()) {
             int itemIndex = 0;
             for (ReturnExchangeItemRequest itemReq : request.getItems()) {
-                OrderDetail orderDetail = orderDetailRepository.findById(itemReq.getOrderDetailId())
-                        .orElseThrow(() -> new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION));
+                Long targetId = itemReq.getOrderDetailId();
 
-                // Đảm bảo Item thuộc về đúng Đơn hàng
-                // Lấy order từ orderDetail ra trước để kiểm tra an toàn
-                Order fetchedOrder = orderDetail.getOrder();
+                // Tự động dò tìm ID này thuộc về loại nào trong đơn hàng hiện tại
+                OrderDetail matchedNormal = normalDetails.stream()
+                        .filter(nd -> nd.getOrderDetailID().equals(targetId))
+                        .findFirst()
+                        .orElse(null);
 
-                // Kiểm tra xem có lấy được Order không, và dùng .equals() để so sánh ID
-                if (fetchedOrder == null || !fetchedOrder.getOrderID().equals(order.getOrderID())) {
-                    throw new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION); // Nên đổi thành mã lỗi rõ hơn, ví dụ: ORDER_DETAIL_NOT_MATCH
+                PrescriptionOrderDetail matchedPrescription = prescriptionDetails.stream()
+                        .filter(pd -> pd.getPrescriptionOrderDetailID().equals(targetId))
+                        .findFirst()
+                        .orElse(null);
+
+                // Validation 1: Không tìm thấy ID này trong cả 2 danh sách
+                if (matchedNormal == null && matchedPrescription == null) {
+                    throw new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION); // Báo lỗi item không hợp lệ
                 }
 
-                // Kiểm tra số lượng hợp lệ
-                if (itemReq.getQuantity() == null || itemReq.getQuantity() <= 0 || itemReq.getQuantity() > orderDetail.getQuantity()) {
-                    throw new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION);
+                // Validation 2: Trùng ID giữa đơn thường và đơn thuốc (Xung đột dữ liệu hiếm gặp)
+                if (matchedNormal != null && matchedPrescription != null) {
+                    throw new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION); // Báo lỗi xung đột dữ liệu
                 }
 
-                // Cộng dồn tiền nếu thuộc type trả hàng/hoàn tiền
-                if (request.getReturnType().equalsIgnoreCase("RETURN") || request.getReturnType().equalsIgnoreCase("REFUND")) {
-                    BigDecimal itemRefund = orderDetail.getUnitPrice().multiply(BigDecimal.valueOf(itemReq.getQuantity()));
-                    refundAmount = refundAmount.add(itemRefund);
-                }
-
-                // Tạo đối tượng Con
+                // Khởi tạo đối tượng Con
                 ReturnExchangeItem returnItem = new ReturnExchangeItem();
                 returnItem.setReturnExchange(returnExchange);
-                returnItem.setOrderDetail(orderDetail);
-                returnItem.setQuantity(itemReq.getQuantity());
                 returnItem.setItemReason(itemReq.getItemReason());
                 returnItem.setNote(itemReq.getNote());
-                returnItem.setItemSource("ORDER_DETAIL");
+
+                // Phân nhánh gán dữ liệu
+                if (matchedNormal != null) {
+                    // ---> ĐÂY LÀ ĐƠN THƯỜNG
+                    if (itemReq.getQuantity() == null || itemReq.getQuantity() <= 0 || itemReq.getQuantity() > matchedNormal.getQuantity()) {
+                        throw new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION);
+                    }
+
+                    returnItem.setOrderDetail(matchedNormal);
+                    returnItem.setItemSource("ORDER_DETAIL");
+                    returnItem.setQuantity(itemReq.getQuantity());
+
+                    // Cộng dồn tiền
+                    if ("RETURN".equalsIgnoreCase(request.getReturnType()) || "REFUND".equalsIgnoreCase(request.getReturnType())) {
+                        BigDecimal itemRefund = matchedNormal.getUnitPrice().multiply(BigDecimal.valueOf(itemReq.getQuantity()));
+                        refundAmount = refundAmount.add(itemRefund);
+                    }
+                } else {
+                    // ---> ĐÂY LÀ ĐƠN KÍNH THUỐC
+                    returnItem.setPrescriptionOrderDetail(matchedPrescription);
+                    returnItem.setItemSource("ORDER_DETAIL_PRECRIPTION");
+                    returnItem.setQuantity(1); // Mặc định kính thuốc tính là 1 bộ
+
+                    // Cộng dồn tiền
+                    if ("RETURN".equalsIgnoreCase(request.getReturnType()) || "REFUND".equalsIgnoreCase(request.getReturnType())) {
+                        if (matchedPrescription.getSubTotal() != null) {
+                            refundAmount = refundAmount.add(matchedPrescription.getSubTotal());
+                        }
+                    }
+                }
 
                 // Xử lý upload ảnh cho từng item dựa vào index
                 if (itemImages != null && itemIndex < itemImages.size()) {
@@ -201,7 +247,6 @@ public class ReturnExchangeServiceImpl implements ReturnExchangeService {
                     if (currentImage != null && !currentImage.isEmpty()) {
                         try {
                             String itemImageUrl = imageUploadService.uploadImage(currentImage);
-                            // Cần đảm bảo Entity ReturnExchangeItem có field này
                             returnItem.setItemEvidenceUrl(itemImageUrl);
                         } catch (IOException e) {
                             throw new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION); // Đổi thành UPLOAD_IMAGE_FAILED
@@ -214,16 +259,27 @@ public class ReturnExchangeServiceImpl implements ReturnExchangeService {
             }
         }
         else if ("ORDER".equalsIgnoreCase(request.getRequestScope())) {
+            // Nếu trả nguyên toàn bộ đơn hàng (Scope là ORDER)
             refundAmount = order.getTotalAmount();
         }
 
         // Set lại danh sách Items con và Số tiền hoàn
         returnExchange.setReturnExchangeItems(items);
-        if(refundAmount.compareTo(BigDecimal.ZERO) > 0) {
+        if (refundAmount.compareTo(BigDecimal.ZERO) > 0) {
             returnExchange.setRefundAmount(refundAmount);
         }
 
-        // 4. Lưu vào Database
+        // 5. Xử lý upload ảnh QR Code của khách hàng
+        if (customerImageQr != null && !customerImageQr.isEmpty()) {
+            try {
+                String customerQrImageUrl = imageUploadService.uploadImage(customerImageQr);
+                returnExchange.setCustomerAccountQr(customerQrImageUrl);
+            } catch (IOException e) {
+                throw new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION); // Đổi thành UPLOAD_IMAGE_FAILED
+            }
+        }
+
+        // 6. Lưu vào Database
         returnExchangeRepository.save(returnExchange);
 
         return "Return exchange request created successfully";
