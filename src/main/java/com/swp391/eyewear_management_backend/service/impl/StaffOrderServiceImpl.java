@@ -37,6 +37,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -57,6 +58,7 @@ public class StaffOrderServiceImpl implements StaffOrderService {
     private final ReturnExchangeRepo returnExchangeRepo;
     private final ReturnExchangeMapper returnExchangeMapper;
     private final PaymentRepo paymentRepo;
+    private final ProductRepo productRepo;
     private final UserRepo userRepo;
     private final ImageUploadService imageUploadService;
     private final GhnShippingClient ghnShippingClient;
@@ -1320,6 +1322,7 @@ public class StaffOrderServiceImpl implements StaffOrderService {
 
         ReturnExchange savedReturnExchange = returnExchangeRepo.save(returnExchange);
         updateSuccessfulPaymentsToRefunded(returnExchange.getOrder());
+        restockCanceledOrderInventory(returnExchange.getOrder());
         return returnExchangeMapper.toReturnExchangeResponse(savedReturnExchange);
     }
 
@@ -1393,6 +1396,47 @@ public class StaffOrderServiceImpl implements StaffOrderService {
         }
         successfulPayments.forEach(p -> p.setStatus(OrderConstants.PAYMENT_STATUS_REFUNDED));
         paymentRepo.saveAll(successfulPayments);
+    }
+
+    private void restockCanceledOrderInventory(Order order) {
+        if (order == null || order.getOrderID() == null) {
+            return;
+        }
+        List<OrderDetail> orderDetails = orderDetailRepo.findByOrderIdFetchProduct(order.getOrderID());
+        if (orderDetails == null || orderDetails.isEmpty()) {
+            return;
+        }
+
+        Map<Long, Integer> qtyByProductId = new HashMap<>();
+        for (OrderDetail orderDetail : orderDetails) {
+            if (orderDetail == null || orderDetail.getProduct() == null || orderDetail.getProduct().getProductID() == null) {
+                continue;
+            }
+            int quantity = orderDetail.getQuantity() == null ? 0 : orderDetail.getQuantity();
+            if (quantity <= 0) {
+                continue;
+            }
+            qtyByProductId.merge(orderDetail.getProduct().getProductID(), quantity, Integer::sum);
+        }
+        if (qtyByProductId.isEmpty()) {
+            return;
+        }
+
+        List<Long> productIds = qtyByProductId.keySet().stream().sorted().toList();
+        List<Product> products = productRepo.findByIdsForUpdate(productIds);
+        if (products.size() != productIds.size()) {
+            throw new AppException(ErrorCode.INVALID_REQUEST);
+        }
+
+        for (Product product : products) {
+            int increaseQty = qtyByProductId.getOrDefault(product.getProductID(), 0);
+            if (increaseQty <= 0) {
+                continue;
+            }
+            int onHandBefore = product.getOnHandQuantity() == null ? 0 : product.getOnHandQuantity();
+            product.setOnHandQuantity(onHandBefore + increaseQty);
+        }
+        productRepo.saveAll(products);
     }
 
     private String resolveReturnStatusAction(String action) {
