@@ -29,6 +29,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
+
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -235,7 +236,8 @@ public class StaffOrderServiceImpl implements StaffOrderService {
         Order order = orderRepo.findByIdFetchStatus(orderId)
                 .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_FOUND));
         ShippingInfo shippingInfo = requireShippingInfo(order);
-        boolean hasPrescriptionItem = hasPrescriptionItem(orderId);
+        PrescriptionOrder prescriptionOrder = prescriptionOrderRepo.findByOrder_OrderID(orderId).orElse(null);
+        boolean hasPrescriptionItem = hasPrescriptionItem(prescriptionOrder);
         boolean requiresFinalPayment = isRequiresFinalPayment(order);
 
         String orderStatus = normalize(order.getOrderStatus());
@@ -245,6 +247,7 @@ public class StaffOrderServiceImpl implements StaffOrderService {
         }
 
         String normalizedAction = normalize(action);
+        validatePreOrderInventoryForOperationUpdate(order, normalizedAction);
         switch (normalizedAction) {
             case OrderConstants.OPERATION_ACTION_START_PROCESSING -> {
                 if (!isStatus(orderStatus, OrderConstants.ORDER_STATUS_CONFIRMED) || !hasPrescriptionItem) {
@@ -322,15 +325,18 @@ public class StaffOrderServiceImpl implements StaffOrderService {
         LocalDateTime expectedDeliveryAt = shippingInfo != null ? shippingInfo.getExpectedDeliveryAt() : null;
         Boolean isPastExpectedDeliveryAt = expectedDeliveryAt != null && LocalDateTime.now(APP_ZONE_ID).isAfter(expectedDeliveryAt);
 
-        List<StaffOrderItemResponse> orderItems = orderDetailRepo.findByOrderIdFetchProduct(orderId).stream()
+        List<OrderDetail> orderDetails = orderDetailRepo.findByOrderIdFetchProduct(orderId);
+        PrescriptionOrder prescriptionOrder = prescriptionOrderRepo.findByOrder_OrderID(orderId).orElse(null);
+        boolean preOrderInventoryReady = hasSufficientInventoryForOperationUpdate(order, orderDetails, prescriptionOrder);
+        List<StaffOrderItemResponse> orderItems = orderDetails.stream()
                 .map(this::toOrderItemResponse)
                 .toList();
 
-        List<StaffPrescriptionOrderItemResponse> prescriptionItems = mapPrescriptionItems(orderId);
-        boolean hasPrescriptionItem = !prescriptionItems.isEmpty();
+        List<StaffPrescriptionOrderItemResponse> prescriptionItems = mapPrescriptionItems(prescriptionOrder);
+        boolean hasPrescriptionItem = hasPrescriptionItem(prescriptionOrder);
         boolean requiresFinalPayment = isRequiresFinalPayment(order);
         List<String> availableActions = operationStaffView
-                ? resolveOperationActions(order.getOrderStatus(), shippingStatus, hasPrescriptionItem, requiresFinalPayment)
+                ? resolveOperationActions(order.getOrderStatus(), shippingStatus, hasPrescriptionItem, requiresFinalPayment, preOrderInventoryReady)
                 : resolveSalesActions(order.getOrderStatus());
 
         return StaffOrderDetailResponse.builder()
@@ -371,7 +377,8 @@ public class StaffOrderServiceImpl implements StaffOrderService {
     private List<String> resolveOperationActions(String orderStatus,
                                                  String shippingStatus,
                                                  boolean hasPrescriptionItem,
-                                                 boolean requiresFinalPayment) {
+                                                 boolean requiresFinalPayment,
+                                                 boolean preOrderInventoryReady) {
         if (isReadOnlyStatus(orderStatus, shippingStatus)) {
             return List.of();
         }
@@ -405,7 +412,106 @@ public class StaffOrderServiceImpl implements StaffOrderService {
             actions.add(OrderConstants.OPERATION_ACTION_COMPLETE_ORDER);
         }
 
+        if (!preOrderInventoryReady) {
+            actions.removeIf(this::requiresPreOrderInventoryValidation);
+        }
+
         return actions;
+    }
+
+    private void validatePreOrderInventoryForOperationUpdate(Order order, String action) {
+        if (!requiresPreOrderInventoryValidation(action)) {
+            return;
+        }
+        List<OrderDetail> orderDetails = orderDetailRepo.findByOrderIdFetchProduct(order.getOrderID());
+        PrescriptionOrder prescriptionOrder = prescriptionOrderRepo.findByOrder_OrderID(order.getOrderID()).orElse(null);
+        if (hasSufficientInventoryForOperationUpdate(order, orderDetails, prescriptionOrder)) {
+            return;
+        }
+        throw new AppException(ErrorCode.INVENTORY_INSUFFICIENT_QUANTITY);
+    }
+
+    private boolean hasSufficientInventoryForOperationUpdate(Order order,
+                                                             List<OrderDetail> orderDetails,
+                                                             PrescriptionOrder prescriptionOrder) {
+        if (order == null) {
+            return true;
+        }
+        if (!isPreOrderInventoryCheckRequired(order.getOrderType(), prescriptionOrder)) {
+            return true;
+        }
+
+        Map<Long, ProductQuantityRequirement> requiredProducts = new HashMap<>();
+        collectNormalOrderDetailRequirements(requiredProducts, orderDetails);
+        collectPrescriptionOrderRequirements(requiredProducts, prescriptionOrder);
+
+        for (ProductQuantityRequirement requirement : requiredProducts.values()) {
+            if (requirement.availableQuantity() < requirement.requiredQuantity()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private void collectNormalOrderDetailRequirements(Map<Long, ProductQuantityRequirement> requiredProducts,
+                                                      List<OrderDetail> orderDetails) {
+        if (orderDetails == null) {
+            return;
+        }
+        for (OrderDetail orderDetail : orderDetails) {
+            if (orderDetail == null) {
+                continue;
+            }
+            addRequiredProduct(requiredProducts, orderDetail.getProduct(), orderDetail.getQuantity());
+        }
+    }
+
+    private void collectPrescriptionOrderRequirements(Map<Long, ProductQuantityRequirement> requiredProducts,
+                                                      PrescriptionOrder prescriptionOrder) {
+        if (prescriptionOrder == null || prescriptionOrder.getPrescriptionOrderDetails() == null) {
+            return;
+        }
+        for (PrescriptionOrderDetail detail : prescriptionOrder.getPrescriptionOrderDetails()) {
+            if (detail == null) {
+                continue;
+            }
+            addRequiredProduct(requiredProducts, detail.getFrame() != null ? detail.getFrame().getProduct() : null, 1);
+            addRequiredProduct(requiredProducts, detail.getLens() != null ? detail.getLens().getProduct() : null, 1);
+        }
+    }
+
+    private void addRequiredProduct(Map<Long, ProductQuantityRequirement> requiredProducts,
+                                    Product product,
+                                    Integer quantity) {
+        if (product == null || product.getProductID() == null) {
+            return;
+        }
+        int requiredQuantity = quantity != null ? quantity : 0;
+        if (requiredQuantity <= 0) {
+            return;
+        }
+        int availableQuantity = product.getAvailableQuantity() != null ? product.getAvailableQuantity() : 0;
+        requiredProducts.merge(
+                product.getProductID(),
+                new ProductQuantityRequirement(product, requiredQuantity, availableQuantity),
+                (current, ignored) -> current.increaseRequiredQuantity(requiredQuantity)
+        );
+    }
+
+    private boolean isPreOrderInventoryCheckRequired(String orderType, PrescriptionOrder prescriptionOrder) {
+        return isStatus(orderType, OrderConstants.ORDER_TYPE_PRE)
+                || isStatus(orderType, OrderConstants.ORDER_TYPE_MIX)
+                || isStatus(orderType, OrderConstants.ORDER_TYPE_PRESCRIPTION)
+                || hasPrescriptionItem(prescriptionOrder);
+    }
+
+    private boolean requiresPreOrderInventoryValidation(String action) {
+        return isStatus(action, OrderConstants.OPERATION_ACTION_START_PROCESSING)
+                || isStatus(action, OrderConstants.OPERATION_ACTION_START_PACKING)
+                || isStatus(action, OrderConstants.OPERATION_ACTION_MOVE_TO_PACKING)
+                || isStatus(action, OrderConstants.OPERATION_ACTION_HANDOVER_TO_GHN)
+                || isStatus(action, OrderConstants.OPERATION_ACTION_MARK_DELIVERED)
+                || isStatus(action, OrderConstants.OPERATION_ACTION_COMPLETE_ORDER);
     }
 
     private ShippingInfo requireShippingInfo(Order order) {
@@ -416,10 +522,10 @@ public class StaffOrderServiceImpl implements StaffOrderService {
         return shippingInfo;
     }
 
-    private boolean hasPrescriptionItem(Long orderId) {
-        return prescriptionOrderRepo.findByOrder_OrderID(orderId)
-                .map(po -> po.getPrescriptionOrderDetails() != null && !po.getPrescriptionOrderDetails().isEmpty())
-                .orElse(false);
+    private boolean hasPrescriptionItem(PrescriptionOrder prescriptionOrder) {
+        return prescriptionOrder != null
+                && prescriptionOrder.getPrescriptionOrderDetails() != null
+                && !prescriptionOrder.getPrescriptionOrderDetails().isEmpty();
     }
 
     //Hàm này kiểm tra xem Invoice.Status = PARTIALLY_PAID hoặc Order.Order_Status = PARTIALLY_PAID --> Thỏa trả về true
@@ -877,8 +983,7 @@ public class StaffOrderServiceImpl implements StaffOrderService {
                 .build();
     }
 
-    private List<StaffPrescriptionOrderItemResponse> mapPrescriptionItems(Long orderId) {
-        PrescriptionOrder prescriptionOrder = prescriptionOrderRepo.findByOrder_OrderID(orderId).orElse(null);
+    private List<StaffPrescriptionOrderItemResponse> mapPrescriptionItems(PrescriptionOrder prescriptionOrder) {
         if (prescriptionOrder == null || prescriptionOrder.getPrescriptionOrderDetails() == null) {
             return List.of();
         }
@@ -957,6 +1062,15 @@ public class StaffOrderServiceImpl implements StaffOrderService {
             aggregate.response.setTotalPrice(aggregate.response.getTotalPrice().add(lineTotal));
         }
         return aggregates.values().stream().map(a -> a.response).toList();
+    }
+
+    private record ProductQuantityRequirement(Product product, int requiredQuantity, int availableQuantity) {
+        private ProductQuantityRequirement increaseRequiredQuantity(int additionalQuantity) {
+            if (additionalQuantity <= 0) {
+                throw new IllegalArgumentException("additionalQuantity must be > 0");
+            }
+            return new ProductQuantityRequirement(product, requiredQuantity + additionalQuantity, availableQuantity);
+        }
     }
 
     private BigDecimal productPrice(Product product) {
@@ -1064,7 +1178,7 @@ public class StaffOrderServiceImpl implements StaffOrderService {
     }
 
     /*
-        * Hàm này dùng để từ 1 dòng dữ liệu trong table Order và kiểm tra xem đơn hàng đó có bao gồm: PRESCRIPTION_ORDER hay không?
+     * Hàm này dùng để từ 1 dòng dữ liệu trong table Order và kiểm tra xem đơn hàng đó có bao gồm: PRESCRIPTION_ORDER hay không?
      */
     private Predicate buildHasPrescriptionPredicate(jakarta.persistence.criteria.Root<Order> root,
                                                     jakarta.persistence.criteria.CriteriaQuery<?> query,
