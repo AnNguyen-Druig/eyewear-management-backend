@@ -8,6 +8,7 @@ import lombok.ToString;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -102,5 +103,5 @@ public class ReturnExchange {
     private String rejectReason;
 
     @OneToMany(mappedBy = "returnExchange", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<ReturnExchangeItem> returnExchangeItems;
+    private List<ReturnExchangeItem> returnExchangeItems = new ArrayList<>();
 }
