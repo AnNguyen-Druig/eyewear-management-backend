@@ -29,6 +29,15 @@ public interface ProductMapper {
     @Mapping(source = "product", target = "frameId", qualifiedByName = "getFrameId")
     @Mapping(source = "product", target = "lensId", qualifiedByName = "getLensId")
     @Mapping(source = "product", target = "contactLensId", qualifiedByName = "getContactLensId")
+    @Mapping(source = "frame.frameShapeName", target = "frameShapeName")
+    @Mapping(source = "frame.frameMaterialName", target = "frameMaterialName")
+    @Mapping(source = "frame.color", target = "color")
+    @Mapping(source = "lens.isBlueLightBlock", target = "isBlueLightBlock")
+    @Mapping(source = "lens.isPhotochromic", target = "isPhotochromic")
+    @Mapping(source = "lens.lensType.typeName", target = "typeName")
+    @Mapping(source = "contactLens.usageType", target = "usageType")
+    @Mapping(source = "contactLens.lensMaterial", target = "lensMaterial")
+    @Mapping(source = "contactLens.replacementSchedule", target = "replacementSchedule")
     ProductResponse toProductResponse(Product product);
 
     @Named("getAvatarUrl")

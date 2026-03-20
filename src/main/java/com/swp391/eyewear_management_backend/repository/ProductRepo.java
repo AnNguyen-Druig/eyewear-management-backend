@@ -13,23 +13,35 @@ import java.util.List;
 
 
 public interface ProductRepo extends JpaRepository<Product,Long> {
-    @Query("SELECT p FROM Product p WHERE " +
-            "p.isActive = true AND " +
+    @Query("SELECT DISTINCT p FROM Product p " +
+            "JOIN FETCH p.brand b " +
+            "JOIN FETCH p.productType pt " +
+            "LEFT JOIN FETCH p.frame f " +
+            "LEFT JOIN FETCH p.lens l " +
+            "LEFT JOIN FETCH l.lensType lt " +
+            "LEFT JOIN FETCH p.contactLens cl " +
+            "WHERE p.isActive = true AND " +
             "(:name IS NULL OR p.productName LIKE %:name%) AND " +
             "(:minPrice IS NULL OR p.price >= :minPrice) AND " +
             "(:maxPrice IS NULL OR p.price <= :maxPrice) AND " +
-            "(:category IS NULL OR p.brand.brandName LIKE %:category%)")
+            "(:category IS NULL OR b.brandName LIKE %:category%)")
     List<Product> searchProducts(@Param("name") String productName,
                                  @Param("minPrice") Double minPrice,
                                  @Param("maxPrice") Double maxPrice,
                                  @Param("category") String brand);
 
 
-    @Query("SELECT p FROM Product p WHERE " +
-            "(:name IS NULL OR p.productName LIKE %:name%) AND " +
+    @Query("SELECT DISTINCT p FROM Product p " +
+            "JOIN FETCH p.brand b " +
+            "JOIN FETCH p.productType pt " +
+            "LEFT JOIN FETCH p.frame f " +
+            "LEFT JOIN FETCH p.lens l " +
+            "LEFT JOIN FETCH l.lensType lt " +
+            "LEFT JOIN FETCH p.contactLens cl " +
+            "WHERE (:name IS NULL OR p.productName LIKE %:name%) AND " +
             "(:minPrice IS NULL OR p.price >= :minPrice) AND " +
             "(:maxPrice IS NULL OR p.price <= :maxPrice) AND " +
-            "(:category IS NULL OR p.brand.brandName LIKE %:category%)")
+            "(:category IS NULL OR b.brandName LIKE %:category%)")
     List<Product> searchProductsOfAdmin(@Param("name") String productName,
                                  @Param("minPrice") Double minPrice,
                                  @Param("maxPrice") Double maxPrice,

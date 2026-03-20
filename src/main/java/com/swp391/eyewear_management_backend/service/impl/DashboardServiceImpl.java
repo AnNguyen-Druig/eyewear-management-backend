@@ -117,7 +117,7 @@ public class DashboardServiceImpl implements DashboardService {
                 .map(dashboardMapper::toOrderStatusDto)
                 .collect(Collectors.toList());
 
-        // --- 4.3. Top 3 Sản phẩm bán chạy từ start -> end ---
+        // --- 4.3. Top 5 Sản phẩm bán chạy từ start -> end ---
         List<TopProductResponse> topProducts = orderDetailRepository.getTopSellingProducts(startDateTime, endDateTime, PageRequest.of(0, 5))
                 .stream()
                 .map(dashboardMapper::toTopProductDto)

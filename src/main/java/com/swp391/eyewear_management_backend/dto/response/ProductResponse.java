@@ -1,6 +1,7 @@
 package com.swp391.eyewear_management_backend.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -25,4 +26,31 @@ public class ProductResponse {
     private Long contactLensId;
     // Thêm trường availableQuantity
     private Integer availableQuantity;
+
+    @JsonProperty("Frame_Shape_Name")
+    private String frameShapeName;
+
+    @JsonProperty("Frame_Material_Name")
+    private String frameMaterialName;
+
+    @JsonProperty("Color")
+    private String color;
+
+    @JsonProperty("Is_Blue_Light_Block")
+    private Boolean isBlueLightBlock;
+
+    @JsonProperty("Is_Photochromic")
+    private Boolean isPhotochromic;
+
+    @JsonProperty("Type_Name")
+    private String typeName;
+
+    @JsonProperty("Usage_Type")
+    private String usageType;
+
+    @JsonProperty("Lens_Material")
+    private String lensMaterial;
+
+    @JsonProperty("Replacement_Schedule")
+    private String replacementSchedule;
 }
