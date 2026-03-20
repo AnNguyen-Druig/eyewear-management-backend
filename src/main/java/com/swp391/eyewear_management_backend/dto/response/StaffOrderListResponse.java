@@ -20,4 +20,8 @@ public class StaffOrderListResponse {
     private String orderStatus;
     private LocalDateTime orderDate;
     private BigDecimal totalAmount;
+    private String shippingStatus;
+    private Long returnExchangeId;
+    private String returnType;
+    private String returnExchangeStatus;
 }

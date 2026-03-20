@@ -1,4 +1,4 @@
-﻿CREATE DATABASE EyewearManagement
+CREATE DATABASE EyewearManagement
 GO
 USE EyewearManagement
 GO
@@ -32,20 +32,20 @@ CREATE TABLE [User] (
     Province_Name  NVARCHAR(100) NULL,
     District_Code  INT           NULL,
     District_Name  NVARCHAR(100) NULL,
-    Ward_Code      NVARCHAR(20)  NULL,  -- GHN ward_code là string
-    Ward_Name      NVARCHAR(100) NULL;
+    Ward_Code      NVARCHAR(20)  NULL,
+    Ward_Name      NVARCHAR(100) NULL,
 
     CONSTRAINT FK_User_Role FOREIGN KEY (Role_ID) REFERENCES Role(Role_ID),
     CONSTRAINT CK_User_Status CHECK (Status IN (0,1)),
     CONSTRAINT CK_User_District_Pair CHECK (
-        (District_Code IS NULL AND District_Name IS NULL)
+(District_Code IS NULL AND District_Name IS NULL)
     OR (District_Code IS NOT NULL AND District_Name IS NOT NULL)
     ),
     CONSTRAINT CK_User_Ward_Pair CHECK (
-        (Ward_Code IS NULL AND Ward_Name IS NULL)
+(Ward_Code IS NULL AND Ward_Name IS NULL)
     OR (Ward_Code IS NOT NULL AND Ward_Name IS NOT NULL)
     )
-);
+    );
 GO
 
 CREATE TABLE Brand (
@@ -85,16 +85,31 @@ GO
 CREATE TABLE Product (
                          Product_ID BIGINT IDENTITY(1,1) PRIMARY KEY,
                          Product_Name NVARCHAR(255) NOT NULL,
-                         SKU NVARCHAR(50),
+                         SKU NVARCHAR(50) NULL,
                          Product_Type_ID BIGINT NOT NULL,
                          Brand_ID BIGINT NOT NULL,
+
                          Price DECIMAL(15,2) NOT NULL,
                          Cost_Price DECIMAL(15,2) NOT NULL,
+
                          Allow_Preorder BIT NOT NULL DEFAULT 0,
-                         Description NVARCHAR(500),
+
+                         On_Hand_Quantity INT NOT NULL DEFAULT 0,
+                         Reserved_Quantity INT NOT NULL DEFAULT 0,
+
+                         Available_Quantity AS (On_Hand_Quantity - Reserved_Quantity),
+
+                         Description NVARCHAR(500) NULL,
+                         Is_Active BIT NOT NULL DEFAULT 1,
 
                          CONSTRAINT FK_Product_ProductType FOREIGN KEY (Product_Type_ID) REFERENCES Product_Type(Product_Type_ID),
-                         CONSTRAINT FK_Product_Brand FOREIGN KEY (Brand_ID) REFERENCES Brand(Brand_ID)
+                         CONSTRAINT FK_Product_Brand FOREIGN KEY (Brand_ID) REFERENCES Brand(Brand_ID),
+
+                         CONSTRAINT CK_Product_Price CHECK (Price >= 0),
+                         CONSTRAINT CK_Product_CostPrice CHECK (Cost_Price >= 0),
+                         CONSTRAINT CK_Product_OnHandQuantity CHECK (On_Hand_Quantity >= 0),
+                         CONSTRAINT CK_Product_ReservedQuantity CHECK (Reserved_Quantity >= 0),
+                         CONSTRAINT CK_Product_AvailableQuantity CHECK (On_Hand_Quantity >= Reserved_Quantity)
 );
 GO
 
@@ -108,6 +123,11 @@ CREATE TABLE Product_Image (
 );
 GO
 
+/* =========================
+   INVENTORY CŨ
+   - GIỮ LẠI nếu team muốn tham chiếu schema cũ
+   - Không nên dùng cho flow mới
+   ========================= */
 CREATE TABLE Inventory (
                            Inventory_ID BIGINT IDENTITY(1,1) PRIMARY KEY,
                            Product_ID BIGINT NOT NULL,
@@ -122,6 +142,151 @@ CREATE TABLE Inventory (
                            CONSTRAINT FK_Inventory_Product FOREIGN KEY (Product_ID) REFERENCES Product(Product_ID),
                            CONSTRAINT FK_Inventory_User FOREIGN KEY (User_ID) REFERENCES [User](User_ID),
                            CONSTRAINT FK_Inventory_Supplier FOREIGN KEY (Supplier_ID) REFERENCES Supplier(Supplier_ID)
+);
+GO
+
+/* =========================
+   INVENTORY MỚI
+   ========================= */
+
+CREATE TABLE Inventory_Receipt (
+                                   Inventory_Receipt_ID BIGINT IDENTITY(1,1) PRIMARY KEY,
+                                   Receipt_Code NVARCHAR(50) NOT NULL UNIQUE,
+
+                                   Supplier_ID BIGINT NOT NULL,
+                                   Created_By BIGINT NOT NULL,
+                                   Approved_By BIGINT NULL,
+                                   Received_By BIGINT NULL,
+
+                                   Order_Date DATETIME NOT NULL DEFAULT GETDATE(),
+                                   Received_Date DATETIME NULL,
+
+                                   Status NVARCHAR(30) NOT NULL CONSTRAINT DF_InventoryReceipt_Status DEFAULT N'DRAFT',
+                                   Note NVARCHAR(500) NULL,
+
+                                   CONSTRAINT FK_InventoryReceipt_Supplier
+                                       FOREIGN KEY (Supplier_ID) REFERENCES Supplier(Supplier_ID),
+
+                                   CONSTRAINT FK_InventoryReceipt_CreatedBy
+                                       FOREIGN KEY (Created_By) REFERENCES [User](User_ID),
+
+                                   CONSTRAINT FK_InventoryReceipt_ApprovedBy
+                                       FOREIGN KEY (Approved_By) REFERENCES [User](User_ID),
+
+                                   CONSTRAINT FK_InventoryReceipt_ReceivedBy
+                                       FOREIGN KEY (Received_By) REFERENCES [User](User_ID),
+
+                                   CONSTRAINT CK_InventoryReceipt_Status
+                                       CHECK (Status IN (
+                                                         N'DRAFT',
+                                                         N'ORDERED',
+                                                         N'PARTIAL_RECEIVED',
+                                                         N'RECEIVED',
+                                                         N'CANCELED'
+                                           ))
+);
+GO
+
+CREATE TABLE Inventory_Receipt_Detail (
+                                          Inventory_Receipt_Detail_ID BIGINT IDENTITY(1,1) PRIMARY KEY,
+                                          Inventory_Receipt_ID BIGINT NOT NULL,
+                                          Product_ID BIGINT NOT NULL,
+
+                                          Ordered_Quantity INT NOT NULL,
+                                          Received_Quantity INT NOT NULL DEFAULT 0,
+                                          Rejected_Quantity INT NOT NULL DEFAULT 0,
+
+                                          Unit_Cost DECIMAL(15,2) NOT NULL,
+                                          Note NVARCHAR(500) NULL,
+
+                                          CONSTRAINT FK_InventoryReceiptDetail_Receipt
+                                              FOREIGN KEY (Inventory_Receipt_ID)
+                                                  REFERENCES Inventory_Receipt(Inventory_Receipt_ID),
+
+                                          CONSTRAINT FK_InventoryReceiptDetail_Product
+                                              FOREIGN KEY (Product_ID)
+                                                  REFERENCES Product(Product_ID),
+
+                                          CONSTRAINT UQ_InventoryReceiptDetail_Receipt_Product
+                                              UNIQUE (Inventory_Receipt_ID, Product_ID),
+
+                                          CONSTRAINT CK_InventoryReceiptDetail_OrderedQty
+                                              CHECK (Ordered_Quantity > 0),
+
+                                          CONSTRAINT CK_InventoryReceiptDetail_ReceivedQty
+                                              CHECK (Received_Quantity >= 0),
+
+                                          CONSTRAINT CK_InventoryReceiptDetail_RejectedQty
+                                              CHECK (Rejected_Quantity >= 0),
+
+                                          CONSTRAINT CK_InventoryReceiptDetail_UnitCost
+                                              CHECK (Unit_Cost >= 0),
+
+                                          CONSTRAINT CK_InventoryReceiptDetail_QuantityLogic
+                                              CHECK (Received_Quantity + Rejected_Quantity <= Ordered_Quantity)
+);
+GO
+
+CREATE TABLE Inventory_Transaction (
+                                       Inventory_Transaction_ID BIGINT IDENTITY(1,1) PRIMARY KEY,
+                                       Product_ID BIGINT NOT NULL,
+
+                                       Transaction_Type NVARCHAR(30) NOT NULL,
+                                       Quantity_Change INT NOT NULL,
+                                       Quantity_Before INT NOT NULL,
+                                       Quantity_After INT NOT NULL,
+
+                                       Reference_Type NVARCHAR(30) NULL,
+                                       Reference_ID BIGINT NULL,
+
+                                       Order_ID BIGINT NULL,
+                                       Order_Detail_ID BIGINT NULL,
+                                       Inventory_Receipt_ID BIGINT NULL,
+
+                                       Performed_By BIGINT NOT NULL,
+                                       Performed_At DATETIME NOT NULL DEFAULT GETDATE(),
+                                       Note NVARCHAR(500) NULL,
+
+                                       CONSTRAINT FK_InventoryTransaction_Product
+                                           FOREIGN KEY (Product_ID) REFERENCES Product(Product_ID),
+
+                                       CONSTRAINT FK_InventoryTransaction_Order
+                                           FOREIGN KEY (Order_ID) REFERENCES [Order](Order_ID),
+
+                                       CONSTRAINT FK_InventoryTransaction_OrderDetail
+                                           FOREIGN KEY (Order_Detail_ID) REFERENCES Order_Detail(Order_Detail_ID),
+
+                                       CONSTRAINT FK_InventoryTransaction_Receipt
+                                           FOREIGN KEY (Inventory_Receipt_ID) REFERENCES Inventory_Receipt(Inventory_Receipt_ID),
+
+                                       CONSTRAINT FK_InventoryTransaction_PerformedBy
+                                           FOREIGN KEY (Performed_By) REFERENCES [User](User_ID),
+
+                                       CONSTRAINT CK_InventoryTransaction_Type
+                                           CHECK (Transaction_Type IN (
+                                                                       N'RECEIPT_IN',
+                                                                       N'SALE_OUT',
+                                                                       N'ORDER_CANCEL_IN',
+                                                                       N'CUSTOMER_RETURN_IN',
+                                                                       N'RETURN_TO_SUPPLIER_OUT',
+                                                                       N'DAMAGE_OUT',
+                                                                       N'ADJUSTMENT_IN',
+                                                                       N'ADJUSTMENT_OUT',
+                                                                       N'RESERVE',
+                                                                       N'RELEASE_RESERVE'
+                                               )),
+
+                                       CONSTRAINT CK_InventoryTransaction_QtyBefore
+                                           CHECK (Quantity_Before >= 0),
+
+                                       CONSTRAINT CK_InventoryTransaction_QtyAfter
+                                           CHECK (Quantity_After >= 0),
+
+                                       CONSTRAINT CK_InventoryTransaction_QtyChange_NotZero
+                                           CHECK (Quantity_Change <> 0),
+
+                                       CONSTRAINT CK_InventoryTransaction_Balance
+                                           CHECK (Quantity_After = Quantity_Before + Quantity_Change)
 );
 GO
 
@@ -186,7 +351,6 @@ GO
 
 /* =========================
    3) PROMOTION (NEW DESIGN)
-   - BỎ: Order_Promotion, Product_Promotion (cũ)
    ========================= */
 
 CREATE TABLE Promotion (
@@ -194,8 +358,8 @@ CREATE TABLE Promotion (
                            Promotion_Code NVARCHAR(50) NOT NULL UNIQUE,
                            Promotion_Name NVARCHAR(255) NOT NULL,
 
-                           Promotion_Scope NVARCHAR(20) NOT NULL,      -- ORDER / PRODUCT
-                           Discount_Type NVARCHAR(20) NOT NULL,        -- PERCENT / AMOUNT
+                           Promotion_Scope NVARCHAR(20) NOT NULL,
+                           Discount_Type NVARCHAR(20) NOT NULL,
                            Discount_Value DECIMAL(15,2) NOT NULL,
                            Max_Discount_Value DECIMAL(15,2) NULL,
 
@@ -248,7 +412,7 @@ CREATE TABLE Promotion_Product_Target (
                                           Promotion_Product_Target_ID BIGINT IDENTITY(1,1) PRIMARY KEY,
                                           Promotion_ID BIGINT NOT NULL,
 
-                                          Target_Type NVARCHAR(30) NOT NULL,      -- PRODUCT / PRODUCT_TYPE / BRAND / BRAND_PRODUCT_TYPE
+                                          Target_Type NVARCHAR(30) NOT NULL,
                                           Product_ID BIGINT NULL,
                                           Product_Type_ID BIGINT NULL,
                                           Brand_ID BIGINT NULL,
@@ -310,7 +474,6 @@ GO
 
 /* =========================
    4) ORDER + SHIPPING + PAYMENT + INVOICE
-   - GIỮ: Shipping_Fee + Total_Amount computed trong Order
    ========================= */
 
 CREATE TABLE [Order] (
@@ -321,13 +484,11 @@ CREATE TABLE [Order] (
     Order_Code NVARCHAR(50) UNIQUE NULL,
     Order_Date DATETIME NOT NULL DEFAULT GETDATE(),
 
-    Sub_Total DECIMAL(15,2) NOT NULL,          -- tiền hàng
+    Sub_Total DECIMAL(15,2) NOT NULL,
     Tax_Amount DECIMAL(15,2) NOT NULL DEFAULT 0,
     Discount_Amount DECIMAL(15,2) NOT NULL DEFAULT 0,
 
-    Shipping_Fee DECIMAL(15,2) NOT NULL DEFAULT 0,   -- ✅ Giữ trong Order theo yêu cầu
-
--- ✅ Total_Amount gồm cả Shipping_Fee
+    Shipping_Fee DECIMAL(15,2) NOT NULL DEFAULT 0,
     Total_Amount AS (Sub_Total + Tax_Amount - Discount_Amount + Shipping_Fee),
 
     Order_Type NVARCHAR(20) NOT NULL,
@@ -338,7 +499,7 @@ CREATE TABLE [Order] (
 
     CONSTRAINT CK_Order_Status CHECK (Order_Status IN (
                                       N'PENDING', N'CONFIRMED', N'PARTIALLY_PAID', N'PAID',
-                                      N'PROCESSING', N'READY', N'COMPLETED', N'CANCELED'
+                                      N'PROCESSING', N'READY', N'COMPLETED', N'CANCELED', N'RETURNED'
                                                       )),
 
     CONSTRAINT CK_Order_Type CHECK (Order_Type IN (
@@ -356,13 +517,13 @@ CREATE TABLE Shipping_Info (
                                Recipient_Email VARCHAR(100) NULL,
 
                                Recipient_Address NVARCHAR(255) NOT NULL,
+                               Note NVARCHAR(MAX) NULL,
 
                                Province_Code INT NULL,
                                Province_Name NVARCHAR(100) NULL,
                                District_Code INT NULL,
                                District_Name NVARCHAR(100) NULL,
 
-    -- ✅ GHN ward_code thường là string -> NVARCHAR(20)
                                Ward_Code NVARCHAR(20) NULL,
                                Ward_Name NVARCHAR(100) NULL,
 
@@ -371,6 +532,7 @@ CREATE TABLE Shipping_Info (
 
                                Shipping_Status NVARCHAR(30) NOT NULL CONSTRAINT DF_ShippingStatus DEFAULT N'PENDING',
                                Expected_Delivery_At DATETIME2(0) NULL,
+                               Delivered_At DATETIME2(0) NULL,
 
                                CONSTRAINT FK_ShippingInfo_Order FOREIGN KEY (Order_ID) REFERENCES [Order](Order_ID),
 
@@ -383,10 +545,12 @@ CREATE TABLE Shipping_Info (
                                    (Province_Code IS NULL AND Province_Name IS NULL)
                                        OR (Province_Code IS NOT NULL AND Province_Name IS NOT NULL)
                                    ),
+
                                CONSTRAINT CK_Shipping_District_Pair CHECK (
                                    (District_Code IS NULL AND District_Name IS NULL)
                                        OR (District_Code IS NOT NULL AND District_Name IS NOT NULL)
                                    ),
+
                                CONSTRAINT CK_Shipping_Ward_Pair CHECK (
                                    (Ward_Code IS NULL AND Ward_Name IS NULL)
                                        OR (Ward_Code IS NOT NULL AND Ward_Name IS NOT NULL)
@@ -403,19 +567,19 @@ CREATE TABLE Payment (
                          Payment_ID BIGINT IDENTITY(1,1) PRIMARY KEY,
                          Order_ID BIGINT NOT NULL,
 
-                         Payment_Purpose NVARCHAR(20) NOT NULL,      -- DEPOSIT / FULL / REMAINING
+                         Payment_Purpose NVARCHAR(20) NOT NULL,
                          Created_At DATETIME NOT NULL DEFAULT GETDATE(),
                          Payment_Date DATETIME NULL,
 
-                         Payment_Method NVARCHAR(20) NOT NULL,       -- COD / MOMO / VNPAY
+                         Payment_Method NVARCHAR(20) NOT NULL,
                          Amount DECIMAL(15,2) NOT NULL,
 
-                         Status NVARCHAR(20) NOT NULL,               -- PENDING / SUCCESS / FAILED / REFUNDED
+                         Status NVARCHAR(20) NOT NULL,
 
                          CONSTRAINT FK_Payment_Order FOREIGN KEY (Order_ID) REFERENCES [Order](Order_ID),
 
                          CONSTRAINT CK_Payment_Status CHECK (Status IN (
-                                                                        N'PENDING', N'SUCCESS', N'FAILED', N'REFUNDED'
+                                                                        N'PENDING', N'SUCCESS', N'FAILED', N'REFUNDED', N'CANCELED'
                              )),
                          CONSTRAINT CK_Payment_Amount CHECK (Amount > 0),
                          CONSTRAINT CK_Payment_Method CHECK (Payment_Method IN (
@@ -425,7 +589,7 @@ CREATE TABLE Payment (
                                                                                   N'DEPOSIT', N'FULL', N'REMAINING'
                              )),
                          CONSTRAINT CK_Payment_Date_By_Status CHECK (
-                             (Status = N'PENDING' AND Payment_Date IS NULL)
+                             (Status IN (N'PENDING', N'CANCELED') AND Payment_Date IS NULL)
                                  OR (Status IN (N'SUCCESS', N'FAILED', N'REFUNDED'))
                              ),
                          CONSTRAINT CK_Payment_Deposit_Method CHECK (
@@ -438,11 +602,9 @@ CREATE TABLE Invoice (
                          Invoice_ID BIGINT IDENTITY(1,1) PRIMARY KEY,
                          Order_ID BIGINT NOT NULL UNIQUE,
                          Issue_Date DATETIME NOT NULL DEFAULT GETDATE(),
-
-    -- Invoice.Total = Order.Total (đã gồm ship)
                          Total_Amount DECIMAL(15,2) NOT NULL,
-
                          Status NVARCHAR(20) NOT NULL,
+
                          CONSTRAINT FK_Invoice_Order FOREIGN KEY (Order_ID) REFERENCES [Order](Order_ID),
                          CONSTRAINT CK_Invoice_Status CHECK (Status IN (
                                                                         N'UNPAID', N'PARTIALLY_PAID', N'PAID', N'CANCELED'
@@ -477,37 +639,170 @@ GO
 
 CREATE TABLE Return_Exchange (
                                  Return_Exchange_ID BIGINT IDENTITY(1,1) PRIMARY KEY,
-                                 Order_Detail_ID BIGINT NOT NULL,
+                                 Order_ID BIGINT NOT NULL,
                                  User_ID BIGINT NOT NULL,
-                                 Return_Code NVARCHAR(50) UNIQUE NOT NULL,
+                                 Return_Code NVARCHAR(50) NOT NULL UNIQUE,
                                  Request_Date DATETIME NOT NULL DEFAULT GETDATE(),
-                                 Quantity INT NOT NULL,
+
+    /* Ghi chú tổng quát cho request */
+                                 Request_Note NVARCHAR(1000) NULL,
+
+    /* Lý do khách tạo request */
                                  Return_Reason NVARCHAR(500) NULL,
-                                 Product_Condition NVARCHAR(50) NULL,
+
+    /* REFUND / RETURN / WARRANTY / CANCEL_ORDER */
+                                 Return_Type NVARCHAR(20) NOT NULL,
+
+    /* ORDER / ITEM */
+                                 Request_Scope NVARCHAR(10) NOT NULL DEFAULT N'ITEM',
+
+    /* Thông tin refund thủ công */
                                  Refund_Amount DECIMAL(15,2) NULL,
-                                 Refund_Method NVARCHAR(50) NULL,
-                                 Refund_Account_Number NVARCHAR(50) NULL,
+                                 Refund_Method NVARCHAR(30) NULL,
+                                 Refund_Account_Number NVARCHAR(100) NULL,
+                                 Refund_Account_Name NVARCHAR(100) NULL,
+                                 Refund_Reference_Code NVARCHAR(100) NULL,
+                                 Customer_Account_QR NVARCHAR(500) NULL,
+
+    /* Evidence do STAFF upload sau khi chuyển khoản */
+                                 Staff_Refund_Evidence_URL NVARCHAR(500) NULL,
+
+    /* PENDING / APPROVED / REJECTED / COMPLETED */
                                  Status NVARCHAR(30) NOT NULL,
+
+    /* Người duyệt request */
                                  Approved_By BIGINT NULL,
                                  Approved_Date DATETIME NULL,
+
+    /* Người thực hiện hoàn tiền thủ công */
+                                 Processed_By BIGINT NULL,
+                                 Processed_Date DATETIME NULL,
+
+    /* Lý do từ chối nếu REJECTED */
                                  Reject_Reason NVARCHAR(500) NULL,
-                                 Image_URL NVARCHAR(500) NULL,
 
-                                 CONSTRAINT FK_Return_OrderDetail FOREIGN KEY (Order_Detail_ID) REFERENCES Order_Detail(Order_Detail_ID),
-                                 CONSTRAINT FK_Return_User FOREIGN KEY (User_ID) REFERENCES [User](User_ID),
-                                 CONSTRAINT FK_Return_ApprovedBy FOREIGN KEY (Approved_By) REFERENCES [User](User_ID),
+                                 CONSTRAINT FK_ReturnExchange_Order
+                                     FOREIGN KEY (Order_ID) REFERENCES [Order](Order_ID),
 
-                                 CONSTRAINT CK_Return_Status CHECK (Status IN (
-                                                                               N'PENDING', N'APPROVED', N'REJECTED', N'COMPLETED'
-                                     )),
-                                 CONSTRAINT CK_Return_Quantity CHECK (Quantity > 0),
-                                 CONSTRAINT CK_Return_Refund_Amount CHECK (Refund_Amount IS NULL OR Refund_Amount >= 0),
-                                 CONSTRAINT CK_Return_Refund_Method CHECK (Refund_Method IS NULL OR Refund_Method IN (
-                                                                                                                      N'CASH', N'MOMO', N'VNPAY'
-                                     )),
-                                 CONSTRAINT CK_Return_Product_Condition CHECK (Product_Condition IS NULL OR Product_Condition IN (
-                                                                                                                                  N'NEW', N'USED', N'DAMAGED'
-                                     ))
+                                 CONSTRAINT FK_ReturnExchange_User
+                                     FOREIGN KEY (User_ID) REFERENCES [User](User_ID),
+
+                                 CONSTRAINT FK_ReturnExchange_ApprovedBy
+                                     FOREIGN KEY (Approved_By) REFERENCES [User](User_ID),
+
+                                 CONSTRAINT FK_ReturnExchange_ProcessedBy
+                                     FOREIGN KEY (Processed_By) REFERENCES [User](User_ID),
+
+                                 CONSTRAINT CK_ReturnExchange_Status
+                                     CHECK (Status IN (
+                                                       N'PENDING', N'APPROVED', N'REJECTED', N'COMPLETED'
+                                         )),
+
+                                 CONSTRAINT CK_ReturnExchange_ReturnType
+                                     CHECK (Return_Type IN (
+                                                            N'REFUND', N'RETURN', N'WARRANTY', N'CANCEL_ORDER'
+                                         )),
+
+                                 CONSTRAINT CK_ReturnExchange_RequestScope
+                                     CHECK (Request_Scope IN (N'ORDER', N'ITEM')),
+
+    /* REFUND/CANCEL_ORDER = ORDER, RETURN/WARRANTY = ITEM */
+                                 CONSTRAINT CK_ReturnExchange_ScopeByType
+                                     CHECK (
+                                         (Return_Type IN (N'REFUND', N'CANCEL_ORDER') AND Request_Scope = N'ORDER')
+                                             OR
+                                         (Return_Type IN (N'RETURN', N'WARRANTY') AND Request_Scope = N'ITEM')
+                                         ),
+
+                                 CONSTRAINT CK_ReturnExchange_RefundAmount
+                                     CHECK (Refund_Amount IS NULL OR Refund_Amount >= 0),
+
+    /* Nếu REJECTED thì phải có lý do từ chối */
+                                 CONSTRAINT CK_ReturnExchange_RejectReason_Required
+                                     CHECK (
+                                         Status <> N'REJECTED'
+                                             OR (Reject_Reason IS NOT NULL AND LTRIM(RTRIM(Reject_Reason)) <> N'')
+                                         ),
+
+    /*
+       COMPLETED:
+       - WARRANTY, CANCEL_ORDER: không bắt buộc dữ liệu refund
+       - REFUND, RETURN: bắt buộc có dữ liệu refund + evidence
+    */
+                                 CONSTRAINT CK_ReturnExchange_CompletedRefund_Required
+                                     CHECK (
+                                         Status <> N'COMPLETED'
+                                             OR Return_Type IN (N'WARRANTY', N'CANCEL_ORDER')
+                                             OR (
+                                             Refund_Amount IS NOT NULL
+                                                 AND Refund_Amount > 0
+                                                 AND Refund_Method IS NOT NULL
+                                                 AND LTRIM(RTRIM(Refund_Method)) <> N''
+                                                 AND Refund_Account_Number IS NOT NULL
+                                                 AND LTRIM(RTRIM(Refund_Account_Number)) <> N''
+                                                 AND Staff_Refund_Evidence_URL IS NOT NULL
+                                                 AND LTRIM(RTRIM(Staff_Refund_Evidence_URL)) <> N''
+                                                 AND Processed_By IS NOT NULL
+                                                 AND Processed_Date IS NOT NULL
+                                             )
+                                         )
+);
+GO
+
+/* =========================================================
+   2) DETAIL TABLE: Return_Exchange_Item
+   ========================================================= */
+CREATE TABLE Return_Exchange_Item (
+                                      Return_Exchange_Item_ID BIGINT IDENTITY(1,1) PRIMARY KEY,
+                                      Return_Exchange_ID BIGINT NOT NULL,
+
+    /* Nguồn item cần xử lý */
+                                      Item_Source NVARCHAR(40) NOT NULL DEFAULT N'ORDER_DETAIL',
+
+    /* Item thường */
+                                      Order_Detail_ID BIGINT NULL,
+
+    /* Item prescription frame+lens */
+                                      Prescription_Order_Detail_ID BIGINT NULL,
+
+                                      Quantity INT NOT NULL,
+
+    /* Evidence do CUSTOMER upload cho từng item */
+                                      Item_Evidence_URL NVARCHAR(500) NULL,
+
+    /* Lý do riêng cho item nếu cần */
+                                      Item_Reason NVARCHAR(500) NULL,
+
+                                      Note NVARCHAR(500) NULL,
+
+                                      CONSTRAINT FK_ReturnExchangeItem_ReturnExchange
+                                          FOREIGN KEY (Return_Exchange_ID)
+                                              REFERENCES Return_Exchange(Return_Exchange_ID),
+
+                                      CONSTRAINT FK_ReturnExchangeItem_OrderDetail
+                                          FOREIGN KEY (Order_Detail_ID)
+                                              REFERENCES Order_Detail(Order_Detail_ID),
+
+                                      CONSTRAINT FK_ReturnExchangeItem_PrescriptionOrderDetail
+                                          FOREIGN KEY (Prescription_Order_Detail_ID)
+                                              REFERENCES Prescription_Order_Detail(Prescription_Order_Detail_ID),
+
+                                      CONSTRAINT CK_ReturnExchangeItem_ItemSource
+                                          CHECK (Item_Source IN (N'ORDER_DETAIL', N'PRESCRIPTION_ORDER_DETAIL')),
+
+                                      CONSTRAINT CK_ReturnExchangeItem_ExactlyOneDetail
+                                          CHECK (
+                                              (Item_Source = N'ORDER_DETAIL'
+                                                  AND Order_Detail_ID IS NOT NULL
+                                                  AND Prescription_Order_Detail_ID IS NULL)
+                                                  OR
+                                              (Item_Source = N'PRESCRIPTION_ORDER_DETAIL'
+                                                  AND Order_Detail_ID IS NULL
+                                                  AND Prescription_Order_Detail_ID IS NOT NULL)
+                                              ),
+
+                                      CONSTRAINT CK_ReturnExchangeItem_Quantity
+                                          CHECK (Quantity > 0)
 );
 GO
 
@@ -540,6 +835,9 @@ CREATE TABLE Prescription_Order_Detail (
                                            Left_Eye_Sph DECIMAL(5,2) NULL,
                                            Left_Eye_Cyl DECIMAL(5,2) NULL,
                                            Left_Eye_Axis INT NULL,
+                                           PD DECIMAL(4,1) NULL,
+                                           PD_Right DECIMAL(4,1) NULL,
+                                           PD_Left DECIMAL(4,1) NULL,
 
                                            Sub_Total DECIMAL(15,2) NOT NULL,
 
@@ -553,7 +851,7 @@ CREATE TABLE Prescription_Order_Detail (
 GO
 
 /* =========================
-   6) CART (theo đúng ảnh bạn gửi)
+   6) CART
    ========================= */
 
 CREATE TABLE dbo.Cart (
@@ -568,7 +866,6 @@ CREATE TABLE dbo.Cart (
 );
 GO
 
-/* ✅ THEO ẢNH: Product_ID/Frame_ID/Lens_ID là BIGINT (và các PK/FK tương ứng cũng BIGINT rồi) */
 CREATE TABLE dbo.Cart_Item (
                                Cart_Item_ID BIGINT IDENTITY(1,1) NOT NULL,
                                Cart_ID BIGINT NOT NULL,
@@ -614,8 +911,6 @@ CREATE TABLE dbo.Cart_Item_Prescription (
 
                                             CONSTRAINT PK_Cart_Item_Prescription PRIMARY KEY (Prescription_ID),
                                             CONSTRAINT FK_CartItemPrescription_CartItem FOREIGN KEY (Cart_Item_ID) REFERENCES dbo.Cart_Item(Cart_Item_ID),
-
-    -- 1 Cart_Item chỉ có tối đa 1 record prescription (đúng mô hình 1-1)
                                             CONSTRAINT UQ_CartItemPrescription_CartItem UNIQUE (Cart_Item_ID)
 );
 GO

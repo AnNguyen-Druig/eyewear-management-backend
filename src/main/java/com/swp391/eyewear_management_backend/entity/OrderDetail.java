@@ -1,5 +1,6 @@
 package com.swp391.eyewear_management_backend.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -7,13 +8,13 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 @Entity
 @Table(name = "Order_Detail")
 @Getter
 @Setter
 @NoArgsConstructor
-@ToString(exclude = {"order", "product", "returnExchange"})
 public class OrderDetail {
 
     @Id
@@ -24,6 +25,7 @@ public class OrderDetail {
     @ManyToOne(fetch = FetchType.LAZY, cascade = {
             CascadeType.PERSIST, CascadeType.MERGE, CascadeType.DETACH, CascadeType.REFRESH
     })
+    @JsonIgnore
     @JoinColumn(name = "Order_ID", nullable = false)
     private Order order;
 
@@ -42,8 +44,11 @@ public class OrderDetail {
     @Column(name = "Quantity", nullable = false)
     private Integer quantity;
 
-    @OneToOne(mappedBy = "orderDetail", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-    private ReturnExchange returnExchange;
+    @OneToMany(mappedBy = "orderDetail", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    private List<ReturnExchangeItem> returnExchangeItems;
+
+    @OneToMany(mappedBy = "orderDetail", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    private List<InventoryTransaction> inventoryTransactions;
 
     public OrderDetail(Order order, Product product, BigDecimal unitPrice, String note, Integer quantity) {
         this.order = order;

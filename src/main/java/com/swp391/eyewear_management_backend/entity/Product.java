@@ -14,7 +14,7 @@ import java.util.List;
 @Getter
 @Setter
 @NoArgsConstructor
-@ToString(exclude = {"frame", "lens", "contactLens", "images", "inventories", "orderDetails", "promotions"})
+@ToString(exclude = {"frame", "lens", "contactLens", "images", "inventories", "inventoryReceiptDetails", "inventoryTransactions", "orderDetails", "promotions"})
 public class Product {
 
     @Id
@@ -50,14 +50,32 @@ public class Product {
     @Column(name = "Allow_Preorder", nullable = false)
     private Boolean allowPreorder = false;
 
+    @Column(name = "On_Hand_Quantity", nullable = false)
+    private Integer onHandQuantity = 0;
+
+    @Column(name = "Reserved_Quantity", nullable = false)
+    private Integer reservedQuantity = 0;
+
+    @Column(name = "Available_Quantity", insertable = false, updatable = false)
+    private Integer availableQuantity;
+
     @Column(name = "Description", columnDefinition = "NVARCHAR(MAX)")
     private String description;
 
-    @OneToMany(mappedBy = "product", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    @Column(name = "Is_Active", nullable = false)
+    private Boolean isActive = true;
+
+    @OneToMany(mappedBy = "product", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ProductImage> images;
 
-    @OneToMany(mappedBy = "product", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "product", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Inventory> inventories;
+
+    @OneToMany(mappedBy = "product", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    private List<InventoryReceiptDetail> inventoryReceiptDetails;
+
+    @OneToMany(mappedBy = "product", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    private List<InventoryTransaction> inventoryTransactions;
 
     @OneToMany(mappedBy = "product", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     private List<OrderDetail> orderDetails;

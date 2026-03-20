@@ -48,7 +48,6 @@ public class CartItemPrescription {
     @Column(name = "Left_Eye_Add", columnDefinition = "DECIMAL(5,2)")
     private Double leftEyeAdd;
 
-    // Pupillary Distance
     @Column(name = "PD", columnDefinition = "DECIMAL(4,1)")
     private Double pd;
 

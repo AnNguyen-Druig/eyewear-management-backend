@@ -50,12 +50,12 @@ public class CheckoutServiceImpl implements CheckoutService {
                 .filter(Objects::nonNull)   //Kiểm tra xem id có bị null hay ko
                 .distinct()     //Kiểm tra các id trùng
                 .toList();
-        if (ids.isEmpty()) throw new AppException(ErrorCode.INVALID_REQUEST);
+        if (ids.isEmpty()) throw new AppException(ErrorCode.CART_ITEM_ID_REQUIRED);
 
         // 3) load cart items of this user: (A) Load dữ liệu cart item chuẩn từ DB, (B) Validate quyền sở hữu + tính hợp lệ
         List<CartItem> cartItems = cartItemRepo.findByUserIdAndIdsFetchAll(userId, ids);
         if (cartItems.size() != ids.size()) {
-            throw new AppException(ErrorCode.INVALID_REQUEST);
+            throw new AppException(ErrorCode.CART_ITEM_INVALID_FOR_CHECKOUT);
         }
 
         // 3.1) load prescription info (Cart_Item_Prescription) theo cartItemIds
@@ -206,14 +206,23 @@ public class CheckoutServiceImpl implements CheckoutService {
      * itemType logic:
      * - nếu có prescription record (Cart_Item_Prescription) => PRESCRIPTION
      * - hoặc frame + lens => PRESCRIPTION
-     * - còn lại: PRE_ORDER nếu product.allowPreorder = true, else DIRECT
+     * - còn lại:
+     *   - DIRECT nếu Available_Quantity >= requestedQty
+     *   - PRE_ORDER nếu Available_Quantity < requestedQty và Allow_Preorder = 1
+     *   - DIRECT nếu Available_Quantity < requestedQty và Allow_Preorder = 0 (order tạo sẽ bị chặn ở bước tạo order)
      */
     private String determineItemType(CartItem ci, boolean hasPrescriptionRecord) {
         if (hasPrescriptionRecord) return "PRESCRIPTION";
         if (ci.getFrame() != null && ci.getLens() != null) return "PRESCRIPTION";
 
         Product p = resolveSingleProduct(ci);
-        boolean allowPre = p != null && Boolean.TRUE.equals(p.getAllowPreorder());
+        if (p == null) return "DIRECT";
+
+        int requestedQty = ci.getQuantity() == null || ci.getQuantity() <= 0 ? 1 : ci.getQuantity();
+        int availableQty = p.getAvailableQuantity() == null ? 0 : p.getAvailableQuantity();
+        boolean allowPre = Boolean.TRUE.equals(p.getAllowPreorder());
+
+        if (availableQty >= requestedQty) return "DIRECT";
         return allowPre ? "PRE_ORDER" : "DIRECT";
     }
 

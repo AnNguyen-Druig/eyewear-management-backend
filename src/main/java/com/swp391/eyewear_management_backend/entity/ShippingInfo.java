@@ -34,6 +34,9 @@ public class ShippingInfo {
     @Column(name = "Recipient_Address", nullable = false, columnDefinition = "NVARCHAR(255)")
     private String recipientAddress;
 
+    @Column(name = "Note", columnDefinition = "NVARCHAR(MAX)")
+    private String note;
+
     @Column(name = "Province_Code")
     private Integer provinceCode;
 
@@ -63,4 +66,7 @@ public class ShippingInfo {
 
     @Column(name = "Expected_Delivery_At")
     private LocalDateTime expectedDeliveryAt;
+
+    @Column(name = "Delivered_At")
+    private LocalDateTime deliveredAt;
 }

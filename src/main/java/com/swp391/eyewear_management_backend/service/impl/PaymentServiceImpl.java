@@ -2,11 +2,17 @@ package com.swp391.eyewear_management_backend.service.impl;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.swp391.eyewear_management_backend.config.FrontendProperties;
+import com.swp391.eyewear_management_backend.config.OrderConstants;
 import com.swp391.eyewear_management_backend.dto.request.PaymentRequest;
 import com.swp391.eyewear_management_backend.dto.response.PaymentResponse;
+import com.swp391.eyewear_management_backend.entity.Invoice;
 import com.swp391.eyewear_management_backend.entity.Order;
+import com.swp391.eyewear_management_backend.entity.Payment;
 import com.swp391.eyewear_management_backend.entity.User;
+import com.swp391.eyewear_management_backend.repository.InvoiceRepo;
 import com.swp391.eyewear_management_backend.repository.OrderRepo;
+import com.swp391.eyewear_management_backend.repository.PaymentRepo;
 import com.swp391.eyewear_management_backend.repository.UserRepo;
 import com.swp391.eyewear_management_backend.service.PaymentService;
 import lombok.RequiredArgsConstructor;
@@ -20,15 +26,21 @@ import vn.payos.model.v2.paymentRequests.CreatePaymentLinkResponse;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
 public class PaymentServiceImpl implements PaymentService {
+    private static final ZoneId APP_ZONE_ID = ZoneId.of("Asia/Ho_Chi_Minh");
 
     private final PayOS payOS;
     private final OrderRepo orderRepository;
     private final UserRepo userRepo;
+    private final PaymentRepo paymentRepo;
+    private final InvoiceRepo invoiceRepo;
+    private final FrontendProperties frontendProperties;
+    private final CheckoutCartTrackingService checkoutCartTrackingService;
 
     @Override
     public String createPayOSPaymentUrl(Long paymentId, long amount, String orderCodeStr) {
@@ -39,8 +51,8 @@ public class PaymentServiceImpl implements PaymentService {
                 description = description.substring(0, 25);
             }
 
-            String returnUrl = "http://localhost:5173/success";
-            String cancelUrl = "http://localhost:5173/cancel";
+            String returnUrl = buildFrontendUrl(frontendProperties.getSuccessPath());
+            String cancelUrl = buildFrontendUrl(frontendProperties.getCancelPath());
 
             CreatePaymentLinkRequest paymentRequest = CreatePaymentLinkRequest.builder()
                     // Dùng paymentId làm mã đơn của PayOS vì nó là kiểu Long hợp lệ
@@ -88,8 +100,8 @@ public class PaymentServiceImpl implements PaymentService {
             orderRepository.save(newOrder);
 
             String description = "Kinh mat " + payosOrderCode;
-            String returnUrl = "http://localhost:5173/success";
-            String cancelUrl = "http://localhost:5173/cancel";
+            String returnUrl = buildFrontendUrl(frontendProperties.getSuccessPath());
+            String cancelUrl = buildFrontendUrl(frontendProperties.getCancelPath());
 
             CreatePaymentLinkRequest paymentRequest = CreatePaymentLinkRequest.builder()
                     .orderCode(payosOrderCode)
@@ -120,31 +132,89 @@ public class PaymentServiceImpl implements PaymentService {
     @Transactional
     public void processWebhook(ObjectNode webhookBody) {
         try {
-            // 🌟 ĐIỂM ĂN TIỀN LÀ ĐÂY: Dùng hàm verify của bản 2.0.1 (Nếu hacker gửi fake, nó sẽ quăng lỗi)
             payOS.webhooks().verify(webhookBody);
 
-            // 🌟 Tự trích xuất data an toàn bằng JsonNode, chia tay luôn class WebhookData
-            if (webhookBody.has("code") && "00".equals(webhookBody.get("code").asText())) {
-                JsonNode dataNode = webhookBody.get("data");
+            JsonNode dataNode = webhookBody.get("data");
+            if (dataNode == null || !dataNode.has("orderCode")) {
+                return;
+            }
 
-                if (dataNode != null && dataNode.has("orderCode")) {
-                    Long payosOrderCode = dataNode.get("orderCode").asLong();
-                    String dbOrderCode = String.valueOf(payosOrderCode);
+            Long paymentId = dataNode.get("orderCode").asLong();
+            Payment payment = paymentRepo.findByIdForUpdate(paymentId).orElse(null);
+            if (payment == null) {
+                return;
+            }
 
-                    Optional<Order> orderOpt = orderRepository.findByOrderCode(dbOrderCode);
-                    if (orderOpt.isPresent()) {
-                        Order order = orderOpt.get();
-                        order.setOrderStatus("PAID");
+            if (!"PENDING".equalsIgnoreCase(payment.getStatus())) {
+                return;
+            }
 
-                        orderRepository.save(order);
-                        System.out.println("✅ Đã cập nhật đơn hàng " + dbOrderCode + " thành PAID");
-                    } else {
-                        System.err.println("❌ Nhận được tiền nhưng không tìm thấy orderCode: " + dbOrderCode);
+            String code = webhookBody.has("code") ? webhookBody.get("code").asText() : null;
+            boolean success = "00".equals(code);
+
+            payment.setPaymentDate(LocalDateTime.now(APP_ZONE_ID));
+            payment.setStatus(success ? "SUCCESS" : "FAILED");
+            paymentRepo.save(payment);
+
+            Order order = payment.getOrder();
+            if (order == null) {
+                return;
+            }
+
+            Invoice invoice = invoiceRepo.findByOrderOrderID(order.getOrderID()).orElse(null);
+
+            if (success) {
+                if ("DEPOSIT".equalsIgnoreCase(payment.getPaymentPurpose())) {
+                    order.setOrderStatus(OrderConstants.ORDER_STATUS_PARTIALLY_PAID);
+                    if (invoice != null) {
+                        invoice.setStatus(OrderConstants.INVOICE_STATUS_PARTIALLY_PAID);
+                        invoiceRepo.save(invoice);
                     }
+                    checkoutCartTrackingService.cleanupTrackedCartItems(order);
+                } else {
+                    order.setOrderStatus(OrderConstants.ORDER_STATUS_PAID);
+                    if (invoice != null) {
+                        invoice.setStatus(OrderConstants.INVOICE_STATUS_PAID);
+                        invoiceRepo.save(invoice);
+                    }
+                    checkoutCartTrackingService.cleanupTrackedCartItems(order);
+                }
+            } else {
+                order.setOrderStatus(OrderConstants.ORDER_STATUS_CANCELED);
+                if (invoice != null) {
+                    invoice.setStatus(OrderConstants.INVOICE_STATUS_CANCELED);
+                    invoiceRepo.save(invoice);
+                }
+
+                var remainingPayments = paymentRepo.findByOrderIdAndPurposeAndStatusForUpdate(
+                        order.getOrderID(),
+                        OrderConstants.PAYMENT_PURPOSE_REMAINING,
+                        OrderConstants.PAYMENT_STATUS_PENDING
+                );
+                if (!remainingPayments.isEmpty()) {
+                    remainingPayments.forEach(p -> {
+                        p.setStatus(OrderConstants.PAYMENT_STATUS_CANCELED);
+                        p.setPaymentDate(LocalDateTime.now(APP_ZONE_ID));
+                    });
+                    paymentRepo.saveAll(remainingPayments);
                 }
             }
+            orderRepository.save(order);
         } catch (Exception e) {
-            System.err.println("❌ Lỗi xác thực Webhook: " + e.getMessage());
+            throw new RuntimeException("Lỗi xử lý webhook PayOS: " + e.getMessage(), e);
         }
+    }
+
+    private String buildFrontendUrl(String path) {
+        String base = frontendProperties.getBaseUrl();
+        String safePath = (path == null || path.isBlank()) ? "/" : path;
+
+        if (base.endsWith("/") && safePath.startsWith("/")) {
+            return base.substring(0, base.length() - 1) + safePath;
+        }
+        if (!base.endsWith("/") && !safePath.startsWith("/")) {
+            return base + "/" + safePath;
+        }
+        return base + safePath;
     }
 }

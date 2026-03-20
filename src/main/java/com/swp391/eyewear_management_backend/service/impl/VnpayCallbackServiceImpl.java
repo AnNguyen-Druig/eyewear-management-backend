@@ -1,29 +1,34 @@
 package com.swp391.eyewear_management_backend.service.impl;
 
+import com.swp391.eyewear_management_backend.config.OrderConstants;
 import com.swp391.eyewear_management_backend.entity.Invoice;
 import com.swp391.eyewear_management_backend.entity.Order;
 import com.swp391.eyewear_management_backend.entity.Payment;
-import com.swp391.eyewear_management_backend.repository.CartItemRepo;
+import com.swp391.eyewear_management_backend.entity.ShippingInfo;
 import com.swp391.eyewear_management_backend.repository.InvoiceRepo;
 import com.swp391.eyewear_management_backend.repository.OrderRepo;
 import com.swp391.eyewear_management_backend.repository.PaymentRepo;
+import com.swp391.eyewear_management_backend.repository.ShippingInfoRepo;
 import com.swp391.eyewear_management_backend.service.VnpayCallbackService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
-import java.util.List;
+import java.time.ZoneId;
 
 @Service
 @RequiredArgsConstructor
 public class VnpayCallbackServiceImpl implements VnpayCallbackService {
+    private static final ZoneId APP_ZONE_ID = ZoneId.of("Asia/Ho_Chi_Minh");
 
     private final PaymentRepo paymentRepo;
     private final OrderRepo orderRepo;
     private final InvoiceRepo invoiceRepo;
-    private final CartItemRepo cartItemRepo;
+    private final ShippingInfoRepo shippingInfoRepo;
+    private final CheckoutCartTrackingService checkoutCartTrackingService;
 
     /*
         3 mục tiêu chính của hàm handleCallback:
@@ -33,7 +38,7 @@ public class VnpayCallbackServiceImpl implements VnpayCallbackService {
         - Và cuối cùng trả về IpResult để controller quyết định phản hồi/redirect.
      */
     @Transactional
-    public IpResult handleCallback(Long paymentId, long vnpAmount, String vnpResponseCode) {
+    public IpResult handleCallback(Long paymentId, long vnpAmount, String vnpResponseCode, String vnpTransactionStatus) {
         Payment payment = paymentRepo.findByIdForUpdate(paymentId).orElse(null);
         if (payment == null) return IpResult.ORDER_NOT_FOUND;
 
@@ -44,18 +49,22 @@ public class VnpayCallbackServiceImpl implements VnpayCallbackService {
             - Lỗi tạo URL thanh toán: amount gửi đi không đúng với amount bạn lưu Payment
             - Tránh việc paymentId đúng nhưng amount bị mismatch → không được phép confirm.
          */
-        long expected = payment.getAmount().multiply(new BigDecimal("100")).longValue();
+        long expected = (payment.getAmount() == null ? BigDecimal.ZERO : payment.getAmount())
+                .setScale(0, RoundingMode.HALF_UP)
+                .multiply(new BigDecimal("100"))
+                .longValue();
         if (expected != vnpAmount) return IpResult.INVALID_AMOUNT;
 
         // idempotent : callback có thể đến nhiều lần, không được xử lý lặp
-        if (!"PENDING".equalsIgnoreCase(payment.getStatus())) {
+        if (!OrderConstants.PAYMENT_STATUS_PENDING.equalsIgnoreCase(payment.getStatus())) {
             return IpResult.ALREADY_CONFIRMED;
         }
 
-        boolean success = "00".equals(vnpResponseCode); // VNPAY: 00 = success :contentReference[oaicite:3]{index=3}
+        //boolean success = "00".equals(vnpResponseCode); // VNPAY: 00 = success :contentReference[oaicite:3]{index=3}
+        boolean success = "00".equals(vnpResponseCode) && "00".equals(vnpTransactionStatus); // chỉ thành công khi cả responseCode và transactionStatus đều = 00
 
-        payment.setPaymentDate(LocalDateTime.now());
-        payment.setStatus(success ? "SUCCESS" : "FAILED");
+        payment.setPaymentDate(LocalDateTime.now(APP_ZONE_ID));
+        payment.setStatus(success ? OrderConstants.PAYMENT_STATUS_SUCCESS : OrderConstants.PAYMENT_STATUS_FAILED);
         paymentRepo.save(payment);
 
         // Update Order + Invoice theo purpose
@@ -63,32 +72,53 @@ public class VnpayCallbackServiceImpl implements VnpayCallbackService {
         if (order != null) {
             if (success) {
                 if ("FULL".equalsIgnoreCase(payment.getPaymentPurpose())) {
-                    order.setOrderStatus("PAID");
+                    order.setOrderStatus(OrderConstants.ORDER_STATUS_PAID);
                     orderRepo.save(order);
 
                     Invoice inv = invoiceRepo.findByOrderOrderID(order.getOrderID()).orElse(null);
                     if (inv != null) {
-                        inv.setStatus("PAID");
+                        inv.setStatus(OrderConstants.INVOICE_STATUS_PAID);
                         invoiceRepo.save(inv);
                     }
+                    checkoutCartTrackingService.cleanupTrackedCartItems(order);
                 } else if ("DEPOSIT".equalsIgnoreCase(payment.getPaymentPurpose())) {
-                    order.setOrderStatus("PARTIALLY_PAID");
+                    order.setOrderStatus(OrderConstants.ORDER_STATUS_PARTIALLY_PAID);
                     orderRepo.save(order);
 
                     Invoice inv = invoiceRepo.findByOrderOrderID(order.getOrderID()).orElse(null);
                     if (inv != null) {
-                        inv.setStatus("PARTIALLY_PAID");
+                        inv.setStatus(OrderConstants.INVOICE_STATUS_PARTIALLY_PAID);
                         invoiceRepo.save(inv);
                     }
+                    checkoutCartTrackingService.cleanupTrackedCartItems(order);
                 }
             } else {
-                order.setOrderStatus("CANCELED");
+                order.setOrderStatus(OrderConstants.ORDER_STATUS_CANCELED);
                 orderRepo.save(order);
+
+                ShippingInfo si = order.getShippingInfo();
+                if (si != null) {
+                    si.setShippingStatus(OrderConstants.SHIPPING_STATUS_CANCELED);
+                    shippingInfoRepo.save(si);
+                }
 
                 Invoice inv = invoiceRepo.findByOrderOrderID(order.getOrderID()).orElse(null);
                 if (inv != null) {
-                    inv.setStatus("UNPAID");
+                    inv.setStatus(OrderConstants.INVOICE_STATUS_CANCELED);
                     invoiceRepo.save(inv);
+                }
+
+                var remainingPayments = paymentRepo.findByOrderIdAndPurposeAndStatusForUpdate(
+                        order.getOrderID(),
+                        OrderConstants.PAYMENT_PURPOSE_REMAINING,
+                        OrderConstants.PAYMENT_STATUS_PENDING
+                );
+                if (!remainingPayments.isEmpty()) {
+                    remainingPayments.forEach(p -> {
+                        p.setStatus(OrderConstants.PAYMENT_STATUS_CANCELED);
+                        p.setPaymentDate(LocalDateTime.now(APP_ZONE_ID));
+                    });
+                    paymentRepo.saveAll(remainingPayments);
                 }
             }
         }

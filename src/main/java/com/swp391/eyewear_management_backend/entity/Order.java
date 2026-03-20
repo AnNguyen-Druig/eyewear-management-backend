@@ -1,11 +1,8 @@
 package com.swp391.eyewear_management_backend.entity;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import lombok.ToString;
+import lombok.*;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -13,10 +10,10 @@ import java.util.List;
 @Entity
 @Table(name = "[Order]")
 @Builder
-@Data
+@Getter // Thay @Data bằng @Getter và @Setter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@ToString(exclude = {"user", "orderDetails", "payments", "invoice", "orderProcessings", "orderPromotions", "prescriptionOrder"})
 public class Order {
 
     @Id
@@ -67,6 +64,9 @@ public class Order {
 
     @OneToMany(mappedBy = "order", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     private List<Payment> payments;
+
+    @OneToMany(mappedBy = "order", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    private List<InventoryTransaction> inventoryTransactions;
 
     @OneToOne(mappedBy = "order", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     private Invoice invoice;

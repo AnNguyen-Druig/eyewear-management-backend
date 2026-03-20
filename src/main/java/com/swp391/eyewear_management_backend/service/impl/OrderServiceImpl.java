@@ -1,6 +1,8 @@
 package com.swp391.eyewear_management_backend.service.impl;
 
+import com.swp391.eyewear_management_backend.config.OrderConstants;
 import com.swp391.eyewear_management_backend.dto.request.CheckoutPreviewRequest;
+import com.swp391.eyewear_management_backend.dto.request.CustomerCancelOrderRequest;
 import com.swp391.eyewear_management_backend.dto.request.CreateOrderRequest;
 import com.swp391.eyewear_management_backend.dto.request.ShippingAddressRequest;
 import com.swp391.eyewear_management_backend.dto.response.*;
@@ -9,6 +11,7 @@ import com.swp391.eyewear_management_backend.exception.AppException;
 import com.swp391.eyewear_management_backend.exception.ErrorCode;
 import com.swp391.eyewear_management_backend.repository.*;
 import com.swp391.eyewear_management_backend.service.CheckoutService;
+import com.swp391.eyewear_management_backend.service.ImageUploadService;
 import com.swp391.eyewear_management_backend.service.OrderService;
 import com.swp391.eyewear_management_backend.service.PaymentGatewayService;
 import com.swp391.eyewear_management_backend.service.PaymentService;
@@ -18,16 +21,22 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class OrderServiceImpl implements OrderService {
+    private static final ZoneId APP_ZONE_ID = ZoneId.of("Asia/Ho_Chi_Minh");
 
     private final UserRepo userRepo;
     private final CartItemRepo cartItemRepo;
@@ -37,16 +46,22 @@ public class OrderServiceImpl implements OrderService {
     private final OrderDetailRepo orderDetailRepo;
     private final PrescriptionOrderRepo prescriptionOrderRepo;
     private final PrescriptionOrderDetailRepo prescriptionOrderDetailRepo;
+    private final OrderProcessingRepo orderProcessingRepo;
 
     private final ShippingInfoRepo shippingInfoRepo;
     private final PaymentRepo paymentRepo;
     private final InvoiceRepo invoiceRepo;
+    private final ProductRepo productRepo;
+    private final InventoryTransactionRepo inventoryTransactionRepo;
+    private final ReturnExchangeRepo returnExchangeRepo;
 
     private final PromotionRepo promotionRepo;
 
     private final CheckoutService checkoutService; // reuse preview calculation
     private final PaymentService paymentService; // stub for now
     private final PaymentGatewayService paymentGatewayService;
+    private final CheckoutCartTrackingService checkoutCartTrackingService;
+    private final ImageUploadService imageUploadService;
 
     /*
         Hàm này làm 6 nhóm việc chính trong 1 transaction:
@@ -76,7 +91,7 @@ public class OrderServiceImpl implements OrderService {
                 .filter(Objects::nonNull)
                 .distinct()
                 .toList();
-        if (ids.isEmpty()) throw new AppException(ErrorCode.INVALID_REQUEST);
+        if (ids.isEmpty()) throw new AppException(ErrorCode.CART_ITEM_ID_REQUIRED);
 
         // 3) Lấy và kiểm tra cart items của user (để insert detail + delete)
         /*
@@ -85,7 +100,7 @@ public class OrderServiceImpl implements OrderService {
             - Data integrity: phải đủ items thì order mới đúng.
          */
         List<CartItem> cartItems = cartItemRepo.findByUserIdAndIdsFetchAll(userId, ids);
-        if (cartItems.size() != ids.size()) throw new AppException(ErrorCode.INVALID_REQUEST);  // Kiểm tra số lượng items trong cart của user có bằng với số lượng trong cart đang được chọn hay ko
+        if (cartItems.size() != ids.size()) throw new AppException(ErrorCode.CART_ITEM_INVALID_FOR_CHECKOUT);  // Kiểm tra số lượng items trong cart của user có bằng với số lượng trong cart đang được chọn hay ko
 
         // 3.1) load prescription map
         /*
@@ -128,14 +143,15 @@ public class OrderServiceImpl implements OrderService {
         Order order = new Order();
         order.setUser(user);
         order.setOrderCode(generateOrderCode());
-        order.setOrderDate(LocalDateTime.now());
+        order.setOrderDate(now());
 
         order.setSubTotal(preview.getSubTotal());
         order.setTaxAmount(BigDecimal.ZERO);
         order.setDiscountAmount(preview.getDiscountAmount());
         order.setShippingFee(preview.getShippingFee());
 
-        order.setOrderType(preview.getOrderType());
+        String orderType = determineOrderTypeByBusinessRule(preview.getItems(), cartItems, rxMap);
+        order.setOrderType(orderType);
         order.setOrderStatus("PENDING");
 
         // FIX: không dùng setPromotionId (Order không có field promotionId)
@@ -148,6 +164,7 @@ public class OrderServiceImpl implements OrderService {
         }
 
         Order savedOrder = orderRepo.save(order);
+        checkoutCartTrackingService.recordCheckoutCartItemIds(savedOrder, user, ids);
 
         // 8) INSERT Order_Detail + Prescription_Order(+Detail)
         Map<Long, CheckoutLineItemResponse> lineMap = new HashMap<>();
@@ -156,15 +173,15 @@ public class OrderServiceImpl implements OrderService {
         }
 
         // 8.1) create prescription header if needed
-        boolean hasPrescription = preview.getItems().stream().anyMatch(li -> "PRESCRIPTION".equals(li.getItemType()));
+        boolean hasPrescription = cartItems.stream()
+                .anyMatch(ci -> isPrescriptionItemByBusinessRule(ci, rxMap.get(ci.getCartItemId())));
         PrescriptionOrder savedRxOrder = null;
 
         if (hasPrescription) {
             PrescriptionOrder rxOrder = new PrescriptionOrder();
             rxOrder.setOrder(savedOrder);
             rxOrder.setUser(user);
-            rxOrder.setPrescriptionDate(LocalDateTime.now());
-            rxOrder.setNote(request.getNote());
+            rxOrder.setPrescriptionDate(now());
             savedRxOrder = prescriptionOrderRepo.save(rxOrder);
         }
 
@@ -176,28 +193,17 @@ public class OrderServiceImpl implements OrderService {
             CheckoutLineItemResponse li = lineMap.get(ci.getCartItemId());
             if (li == null) continue;
 
-            if (!"PRESCRIPTION".equals(li.getItemType())) {
-                // === NORMAL (DIRECT / PRE_ORDER) -> Order_Detail
-                Product product = resolveOrderDetailProduct(ci);
-                if (product == null) {
-                    throw new AppException(ErrorCode.INVALID_REQUEST);
-                }
-
-                OrderDetail od = new OrderDetail();
-                od.setOrder(savedOrder);
-                od.setProduct(product);
-                od.setUnitPrice(li.getUnitPrice());
-                od.setQuantity(li.getQuantity() == null ? 1 : li.getQuantity());
-                od.setNote(request.getNote());
-
-                normalDetails.add(od);
+            CartItemPrescription rx = rxMap.get(ci.getCartItemId());
+            boolean isPrescriptionItem = isPrescriptionItemByBusinessRule(ci, rx);
+            if (!isPrescriptionItem) {
+                normalDetails.add(buildNormalOrderDetail(savedOrder, ci, li));
+            } else if (ci.getContactLens() != null) {
+                normalDetails.add(buildNormalOrderDetail(savedOrder, ci, li));
             } else {
                 // === PRESCRIPTION -> Prescription_Order_Detail
                 if (savedRxOrder == null) {
-                    throw new AppException(ErrorCode.INVALID_REQUEST);
+                    throw new AppException(ErrorCode.CART_ITEM_INVALID_FOR_CHECKOUT);
                 }
-
-                CartItemPrescription rx = rxMap.get(ci.getCartItemId());
 
                 int qty = li.getQuantity() == null ? 1 : li.getQuantity();
                 BigDecimal lineDiscount = li.getLineDiscount() == null ? BigDecimal.ZERO : li.getLineDiscount();
@@ -212,13 +218,19 @@ public class OrderServiceImpl implements OrderService {
                     pod.setLens(ci.getLens());
 
                     if (rx != null) {
-                        pod.setRightEyeSph(toBd(rx.getRightEyeSph()));
-                        pod.setRightEyeCyl(toBd(rx.getRightEyeCyl()));
+                        pod.setRightEyeSph(rx.getRightEyeSph());
+                        pod.setRightEyeCyl(rx.getRightEyeCyl());
                         pod.setRightEyeAxis(rx.getRightEyeAxis());
+                        pod.setRightEyeAdd(rx.getRightEyeAdd());
 
-                        pod.setLeftEyeSph(toBd(rx.getLeftEyeSph()));
-                        pod.setLeftEyeCyl(toBd(rx.getLeftEyeCyl()));
+                        pod.setLeftEyeSph(rx.getLeftEyeSph());
+                        pod.setLeftEyeCyl(rx.getLeftEyeCyl());
                         pod.setLeftEyeAxis(rx.getLeftEyeAxis());
+                        pod.setLeftEyeAdd(rx.getLeftEyeAdd());
+
+                        pod.setPd(rx.getPd());
+                        pod.setPdRight(rx.getPdRight());
+                        pod.setPdLeft(rx.getPdLeft());
                     }
 
                     // Sub_Total = unitPrice - perUnitDiscount (net per unit)
@@ -238,12 +250,15 @@ public class OrderServiceImpl implements OrderService {
             prescriptionOrderDetailRepo.saveAll(rxDetails);
         }
 
+        deductInventoryAfterOrderCreated(savedOrder, cartItems, user);
+
         // 9) INSERT Shipping_Info
         ShippingInfo ship = new ShippingInfo();
         ship.setOrder(savedOrder);
         ship.setRecipientName(request.getRecipientName());
         ship.setRecipientPhone(request.getRecipientPhone());
         ship.setRecipientEmail(request.getRecipientEmail());
+        ship.setNote(request.getNote());
 
         ship.setRecipientAddress(buildFullAddress(address, user));
         ship.setProvinceCode(address != null ? address.getProvinceCode() : null);
@@ -263,7 +278,7 @@ public class OrderServiceImpl implements OrderService {
         // 10) INSERT Invoice
         Invoice invoice = new Invoice();
         invoice.setOrder(savedOrder);
-        invoice.setIssueDate(LocalDateTime.now());
+        invoice.setIssueDate(now());
         invoice.setTotalAmount(preview.getTotalAmount());
         invoice.setStatus("UNPAID");
         invoiceRepo.save(invoice);
@@ -272,13 +287,14 @@ public class OrderServiceImpl implements OrderService {
         Payment createdPayment = null;
 
         if (plan.createDepositPayment) {
+            BigDecimal depAmount = normalizeOnlineAmount(plan.depositAmount);
             Payment dep = Payment.builder()
                     .order(savedOrder)
                     .paymentPurpose("DEPOSIT")
-                    .createdAt(LocalDateTime.now())
+                    .createdAt(now())
                     .paymentDate(null)
                     .paymentMethod(plan.depositMethod)
-                    .amount(plan.depositAmount)
+                    .amount(depAmount)
                     .status("PENDING")
                     .build();
             paymentRepo.save(dep);
@@ -288,7 +304,7 @@ public class OrderServiceImpl implements OrderService {
             Payment rem = Payment.builder()
                     .order(savedOrder)
                     .paymentPurpose("REMAINING")
-                    .createdAt(LocalDateTime.now())
+                    .createdAt(now())
                     .paymentDate(null)
                     .paymentMethod("COD")
                     .amount(plan.remainingAmount)
@@ -297,13 +313,14 @@ public class OrderServiceImpl implements OrderService {
             paymentRepo.save(rem);
 
         } else {
+            BigDecimal fullAmount = normalizeOnlineAmount(plan.fullAmount);
             Payment full = Payment.builder()
                     .order(savedOrder)
                     .paymentPurpose("FULL")
-                    .createdAt(LocalDateTime.now())
+                    .createdAt(now())
                     .paymentDate(null)
                     .paymentMethod(plan.fullMethod)
-                    .amount(plan.fullAmount)
+                    .amount(fullAmount)
                     .status("PENDING")
                     .build();
             paymentRepo.save(full);
@@ -319,27 +336,12 @@ public class OrderServiceImpl implements OrderService {
             promotionRepo.incrementUsedCount(preview.getAppliedPromotionId());
         }
 
-        // 13) Load managed cart items rồi xóa bằng JPA remove (cascade/orphanRemoval sẽ chạy)
-            //Cách 1 (chưa hoàn thiện): Lúc người dùng chuyển qua paymentUrl lúc chưa thanh toán thì Item vẫn còn trong Cart_Item
-            //  Nhưng khi đặt hàng thành công rồi thì phải xóa Item trong Cart_Item --> Chưa xóa --> Cần fix
-//        boolean hasPendingOnlinePayment = createdPayment != null
-//                && createdPayment.getPaymentMethod() != null
-//                && !"COD".equalsIgnoreCase(createdPayment.getPaymentMethod());
-//
-//        if (!hasPendingOnlinePayment) {
-//            var managedCartItems = cartItemRepo.findByCartItemIdIn(ids);
-//            if (managedCartItems.size() != ids.size()) {
-//                throw new AppException(ErrorCode.INVALID_REQUEST);
-//            }
-//            cartItemRepo.deleteAll(managedCartItems);
-//        }
-            //Cách 2: Lúc người dùng chuyển qua paymentUrl lúc chưa thanh toán thì Item đã bị xóa khỏi Cart_Item
-            // --> Nên fix cách 1 và sử dụng cách 1 (hiện tại dùng đỡ cách 2)
-        var managedCartItems = cartItemRepo.findByCartItemIdIn(ids);
-        if (managedCartItems.size() != ids.size()) {
-            throw new AppException(ErrorCode.INVALID_REQUEST);
+        boolean hasOnlinePendingPayment = createdPayment != null
+                && createdPayment.getPaymentMethod() != null
+                && !"COD".equalsIgnoreCase(createdPayment.getPaymentMethod());
+        if (!hasOnlinePendingPayment) {
+            cartItemRepo.deleteAll(cartItems);
         }
-        cartItemRepo.deleteAll(managedCartItems);
 
         // 14) nếu cần online redirect => tạo paymentUrl theo paymentMethod
         String paymentUrl = null;
@@ -349,24 +351,19 @@ public class OrderServiceImpl implements OrderService {
         if (createdPayment != null) {
             String method = createdPayment.getPaymentMethod();
             if (method != null && !"COD".equalsIgnoreCase(method)) {
-                redirect = true;
                 paymentId = createdPayment.getPaymentID();
-
-                // amount dùng để tạo link (BigDecimal)
-                BigDecimal payAmount = createdPayment.getAmount();
-
-                // tạo đúng URL theo method: VNPAY / PAYOS / MOMO
-                paymentUrl = paymentGatewayService.createPaymentUrl(
-                        method,
-                        savedOrder.getOrderID(),
-                        paymentId,
-                        payAmount
-                );
-
-                // nếu method MOMO chưa hỗ trợ, bạn có thể trả null hoặc throw lỗi
-                if (paymentUrl == null) {
-                    throw new AppException(ErrorCode.PAYMENT_METHOD_NOT_SUPPORTED);
+                try {
+                    BigDecimal payAmount = createdPayment.getAmount();
+                    paymentUrl = paymentGatewayService.createPaymentUrl(
+                            method,
+                            savedOrder.getOrderID(),
+                            paymentId,
+                            payAmount
+                    );
+                } catch (RuntimeException ex) {
+                    paymentUrl = null;
                 }
+                redirect = paymentUrl != null;
             }
         }
 
@@ -391,6 +388,97 @@ public class OrderServiceImpl implements OrderService {
                 .paymentUrl(paymentUrl)
                 .paymentId(paymentId)
                 .build();
+    }
+
+    private BigDecimal normalizeOnlineAmount(BigDecimal amount) {
+        if (amount == null) return BigDecimal.ZERO;
+        return amount.setScale(0, RoundingMode.HALF_UP);
+    }
+
+    private void deductInventoryAfterOrderCreated(Order order, List<CartItem> cartItems, User user) {
+        Map<Long, Integer> requiredByProductId = new HashMap<>();
+
+        for (CartItem cartItem : cartItems) {
+            int qty = cartItem.getQuantity() == null || cartItem.getQuantity() <= 0 ? 1 : cartItem.getQuantity();
+            addRequiredQuantity(requiredByProductId, productFromContactLens(cartItem), qty);
+            addRequiredQuantity(requiredByProductId, productFromFrame(cartItem), qty);
+            addRequiredQuantity(requiredByProductId, productFromLens(cartItem), qty);
+        }
+
+        if (requiredByProductId.isEmpty()) {
+            return;
+        }
+
+        List<Long> productIds = requiredByProductId.keySet().stream()
+                .sorted()
+                .toList();
+        List<Product> products = productRepo.findByIdsForUpdate(productIds);
+        if (products.size() != productIds.size()) {
+            throw new AppException(ErrorCode.CART_ITEM_INVALID_FOR_CHECKOUT);
+        }
+
+        List<InventoryTransaction> transactions = new ArrayList<>();
+        for (Product product : products) {
+            Long productId = product.getProductID();
+            int requestedQty = requiredByProductId.getOrDefault(productId, 0);
+            int onHandBefore = product.getOnHandQuantity() == null ? 0 : product.getOnHandQuantity();
+            boolean allowPreorder = Boolean.TRUE.equals(product.getAllowPreorder());
+            if (onHandBefore < requestedQty && !allowPreorder) {
+                throw new AppException(ErrorCode.INVENTORY_INSUFFICIENT_QUANTITY);
+            }
+
+            int deductedQty = Math.min(onHandBefore, requestedQty);
+            int onHandAfter = onHandBefore - deductedQty;
+            product.setOnHandQuantity(onHandAfter);
+
+            if (deductedQty <= 0) {
+                continue;
+            }
+
+            InventoryTransaction tx = new InventoryTransaction();
+            tx.setProduct(product);
+            tx.setTransactionType("SALE_OUT");
+            tx.setQuantityBefore(onHandBefore);
+            tx.setQuantityAfter(onHandAfter);
+            tx.setQuantityChange(-deductedQty);
+            tx.setReferenceType("ORDER");
+            tx.setReferenceID(order.getOrderID());
+            tx.setOrder(order);
+            tx.setPerformedBy(user);
+            tx.setPerformedAt(now());
+            tx.setNote(order.getOrderCode());
+            transactions.add(tx);
+        }
+
+        productRepo.saveAll(products);
+        if (!transactions.isEmpty()) {
+            inventoryTransactionRepo.saveAll(transactions);
+        }
+    }
+
+    private void addRequiredQuantity(Map<Long, Integer> requiredByProductId,
+                                     Product product,
+                                     int qty) {
+        if (product == null || product.getProductID() == null || qty <= 0) {
+            return;
+        }
+        Long productId = product.getProductID();
+        requiredByProductId.merge(productId, qty, Integer::sum);
+    }
+
+    private Product productFromContactLens(CartItem cartItem) {
+        if (cartItem.getContactLens() == null) return null;
+        return cartItem.getContactLens().getProduct();
+    }
+
+    private Product productFromFrame(CartItem cartItem) {
+        if (cartItem.getFrame() == null) return null;
+        return cartItem.getFrame().getProduct();
+    }
+
+    private Product productFromLens(CartItem cartItem) {
+        if (cartItem.getLens() == null) return null;
+        return cartItem.getLens().getProduct();
     }
 
     @Override
@@ -462,11 +550,205 @@ public class OrderServiceImpl implements OrderService {
                 .build();
     }
 
+    @Override
+    @Transactional
+    public CustomerCancelOrderResponse cancelOrderByCustomer(Long orderId,
+                                                             CustomerCancelOrderRequest request,
+                                                             MultipartFile customerAccountQrFile) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated() || auth instanceof AnonymousAuthenticationToken) {
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        }
+
+        String username = auth.getName();
+        User currentUser = userRepo.findByUsername(username)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+
+        Order order = orderRepo.findByIdFetchStatus(orderId)
+                .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_FOUND));
+
+        boolean isOwner = order.getUser() != null
+                && Objects.equals(order.getUser().getUserId(), currentUser.getUserId());
+        if (!isOwner) {
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        }
+
+        if (!isCustomerCancelableStatus(order.getOrderStatus())) {
+            throw new AppException(ErrorCode.INVALID_REQUEST);
+        }
+
+        boolean hasOpenRefundRequest = returnExchangeRepo.existsByOrder_OrderIDAndReturnTypeAndRequestScopeAndStatusIn(
+                orderId,
+                "REFUND",
+                "ORDER",
+                List.of("PENDING", "APPROVED")
+        );
+        if (hasOpenRefundRequest) {
+            throw new AppException(ErrorCode.INVALID_REQUEST);
+        }
+
+        BigDecimal totalPaidSuccess = sumSuccessfulPayments(order);
+        BigDecimal totalRefundedCompleted = sumCompletedOrderRefundAmount(orderId);
+        BigDecimal refundAmount = totalPaidSuccess.subtract(totalRefundedCompleted);
+        if (refundAmount.signum() < 0) {
+            refundAmount = BigDecimal.ZERO;
+        }
+        boolean refundRequired = refundAmount.compareTo(BigDecimal.ZERO) > 0;
+
+        String refundMethod = null;
+        String refundAccountNumber = null;
+        String refundAccountName = null;
+        String customerAccountQrUrl = null;
+        if (refundRequired) {
+            refundMethod = normalizeText(request != null ? request.getRefundMethod() : null);
+            refundAccountNumber = normalizeText(request != null ? request.getRefundAccountNumber() : null);
+            refundAccountName = normalizeText(request != null ? request.getRefundAccountName() : null);
+            if (refundMethod == null || refundAccountNumber == null) {
+                throw new AppException(ErrorCode.INVALID_REQUEST);
+            }
+            if (customerAccountQrFile != null && !customerAccountQrFile.isEmpty()) {
+                try {
+                    customerAccountQrUrl = imageUploadService.uploadImage(customerAccountQrFile);
+                } catch (IOException ex) {
+                    throw new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION);
+                }
+            }
+        }
+
+        order.setOrderStatus(OrderConstants.ORDER_STATUS_CANCELED);
+        orderRepo.save(order);
+
+        ShippingInfo shippingInfo = order.getShippingInfo();
+        if (shippingInfo != null) {
+            shippingInfo.setShippingStatus(OrderConstants.SHIPPING_STATUS_CANCELED);
+            shippingInfoRepo.save(shippingInfo);
+        }
+
+        Invoice invoice = order.getInvoice();
+        if (invoice != null) {
+            invoice.setStatus(OrderConstants.INVOICE_STATUS_CANCELED);
+            invoiceRepo.save(invoice);
+        }
+        cancelPendingPaymentsAfterOrderCanceled(order);
+
+        OrderProcessing orderProcessing = new OrderProcessing();
+        orderProcessing.setOrder(order);
+        orderProcessing.setChangedBy(currentUser);
+        orderProcessing.setChangedAt(now());
+        orderProcessing.setNote(buildCustomerCancelNote(request));
+        orderProcessingRepo.save(orderProcessing);
+
+        String returnType = refundRequired ? "REFUND" : "CANCEL_ORDER";
+        ReturnExchange returnExchange = new ReturnExchange();
+        returnExchange.setOrder(order);
+        returnExchange.setUser(currentUser);
+        returnExchange.setReturnCode(generateReturnCode(returnType));
+        returnExchange.setRequestDate(now());
+        returnExchange.setRequestNote(normalizeText(request != null ? request.getRequestNote() : null));
+        returnExchange.setReturnReason(normalizeText(request != null ? request.getCancelReason() : null));
+        returnExchange.setRequestScope("ORDER");
+        returnExchange.setReturnType(returnType);
+        if (refundRequired) {
+            returnExchange.setRefundAmount(refundAmount);
+            returnExchange.setRefundMethod(refundMethod);
+            returnExchange.setRefundAccountNumber(refundAccountNumber);
+            returnExchange.setRefundAccountName(refundAccountName);
+            returnExchange.setCustomerAccountQr(customerAccountQrUrl);
+            returnExchange.setStatus("PENDING");
+        } else {
+            returnExchange.setStatus("COMPLETED");
+        }
+        returnExchange = returnExchangeRepo.save(returnExchange);
+
+        return CustomerCancelOrderResponse.builder()
+                .orderId(order.getOrderID())
+                .orderCode(order.getOrderCode())
+                .orderStatus(order.getOrderStatus())
+                .cancelScenario(refundRequired ? "CANCEL_WITH_MANUAL_REFUND" : "CANCEL_WITHOUT_REFUND")
+                .refundRequired(refundRequired)
+                .refundAmount(refundAmount)
+                .returnExchangeId(returnExchange != null ? returnExchange.getReturnExchangeID() : null)
+                .returnExchangeCode(returnExchange != null ? returnExchange.getReturnCode() : null)
+                .returnExchangeStatus(returnExchange != null ? returnExchange.getStatus() : null)
+                .build();
+    }
+
+    private String generateReturnCode(String returnType) {
+        String typePrefix = "RX";
+        if (returnType != null) {
+            switch (returnType.trim().toUpperCase(Locale.ROOT)) {
+                case "RETURN" -> typePrefix = "RT";
+                case "WARRANTY" -> typePrefix = "WA";
+                case "REFUND" -> typePrefix = "RF";
+                default -> typePrefix = "RX";
+            }
+        }
+        String datePart = LocalDate.now(APP_ZONE_ID).format(DateTimeFormatter.ofPattern("yyMMdd"));
+        String prefix = typePrefix + datePart;
+        Optional<ReturnExchange> lastReturnOpt = returnExchangeRepo.findTopByReturnCodeStartingWithOrderByReturnCodeDesc(prefix);
+        int sequence = 1;
+        if (lastReturnOpt.isPresent()) {
+            String lastCode = lastReturnOpt.get().getReturnCode();
+            String sequenceStr = lastCode.substring(lastCode.length() - 4);
+            sequence = Integer.parseInt(sequenceStr) + 1;
+        }
+        String finalCode;
+        do {
+            finalCode = prefix + String.format("%04d", sequence);
+            sequence++;
+        } while (returnExchangeRepo.findByReturnCode(finalCode).isPresent());
+        return finalCode;
+    }
+
+    private String buildCustomerCancelNote(CustomerCancelOrderRequest request) {
+        String reason = normalizeText(request != null ? request.getCancelReason() : null);
+        if (reason == null) {
+            return "CUSTOMER_CANCEL_BEFORE_CONFIRM";
+        }
+        return "CUSTOMER_CANCEL_BEFORE_CONFIRM: " + reason;
+    }
+
+    private String normalizeText(String text) {
+        if (text == null) {
+            return null;
+        }
+        String trimmed = text.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private void cancelPendingPaymentsAfterOrderCanceled(Order order) {
+        if (order.getPayments() == null || order.getPayments().isEmpty()) {
+            return;
+        }
+        List<Payment> pendingPayments = order.getPayments().stream()
+                .filter(Objects::nonNull)
+                .filter(p -> OrderConstants.PAYMENT_STATUS_PENDING.equalsIgnoreCase(p.getStatus()))
+                .toList();
+        if (pendingPayments.isEmpty()) {
+            return;
+        }
+        pendingPayments.forEach(p -> p.setStatus(OrderConstants.PAYMENT_STATUS_CANCELED));
+        paymentRepo.saveAll(pendingPayments);
+    }
+
     private Product resolveOrderDetailProduct(CartItem ci) {
         if (ci.getContactLens() != null) return ci.getContactLens().getProduct();
         if (ci.getFrame() != null && ci.getLens() == null) return ci.getFrame().getProduct();
         if (ci.getLens() != null && ci.getFrame() == null) return ci.getLens().getProduct();
         return null; // frame+lens => prescription, không vào Order_Detail
+    }
+
+    private OrderDetail buildNormalOrderDetail(Order order, CartItem ci, CheckoutLineItemResponse li) {
+        Product product = resolveOrderDetailProduct(ci);
+        if (product == null) {
+            throw new AppException(ErrorCode.CART_ITEM_INVALID_FOR_CHECKOUT);
+        }
+        OrderDetail od = new OrderDetail();
+        od.setOrder(order);
+        od.setProduct(product);
+        od.setUnitPrice(li.getUnitPrice());
+        od.setQuantity(li.getQuantity() == null ? 1 : li.getQuantity());
+        return od;
     }
 
     private ShippingAddressRequest resolveAddress(ShippingAddressRequest reqAddr, User user) {
@@ -501,7 +783,7 @@ public class OrderServiceImpl implements OrderService {
     }
 
     private String generateOrderCode() {
-        return "ORD-" + LocalDateTime.now().toLocalDate() + "-" +
+        return "ORD-" + now().toLocalDate() + "-" +
                 UUID.randomUUID().toString().substring(0, 8).toUpperCase();
     }
 
@@ -532,7 +814,7 @@ public class OrderServiceImpl implements OrderService {
         if ("COD".equalsIgnoreCase(method)) {
             // COD main but deposit must be online
             if (req.getDepositPaymentMethod() == null) {
-                throw new AppException(ErrorCode.INVALID_REQUEST);
+                throw new AppException(ErrorCode.DEPOSIT_PAYMENT_METHOD_REQUIRED);
             }
             return PaymentPlan.deposit(req.getDepositPaymentMethod(), dep, rem);
         }
@@ -575,8 +857,470 @@ public class OrderServiceImpl implements OrderService {
 
     private BigDecimal toBd(Double v) {
         if (v == null) return null;
-
-        // tránh sai số double: dùng String để tạo BigDecimal
         return new BigDecimal(String.valueOf(v)).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal toPdBd(Double v) {
+        if (v == null) return null;
+        return new BigDecimal(String.valueOf(v)).setScale(1, RoundingMode.HALF_UP);
+    }
+
+    private boolean hasPdData(CartItemPrescription rx) {
+        return rx.getPd() != null || (rx.getPdRight() != null && rx.getPdLeft() != null);
+    }
+
+    private LocalDateTime now() {
+        return LocalDateTime.now(APP_ZONE_ID);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<CustomerOrderHistoryResponse> getCustomerOrderHistory() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated() || auth instanceof AnonymousAuthenticationToken) {
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        }
+
+        String username = auth.getName();
+        User currentUser = userRepo.findByUsername(username)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+
+        List<Order> orders = orderRepo.findAllByUserIdWithShippingInfo(currentUser.getUserId());
+
+        return orders.stream()
+                .map(order -> CustomerOrderHistoryResponse.builder()
+                        .orderId(order.getOrderID())
+                        .orderCode(order.getOrderCode())
+                        .orderType(order.getOrderType())
+                        .orderStatus(order.getOrderStatus())
+                        .orderDate(order.getOrderDate())
+                        .totalAmount(order.getTotalAmount())
+                        .shippingStatus(order.getShippingInfo() != null ? order.getShippingInfo().getShippingStatus() : null)
+                        .build())
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public StaffOrderDetailResponse getOrderDetailForCustomer(Long orderId) {
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated() || auth instanceof AnonymousAuthenticationToken) {
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        }
+
+        String username = auth.getName();
+        User currentUser = userRepo.findByUsername(username)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+
+        Order order = orderRepo.findByIdFetchStatus(orderId)
+                .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_FOUND));
+
+        boolean isOwner = order.getUser() != null
+                && Objects.equals(order.getUser().getUserId(), currentUser.getUserId());
+
+        boolean isAdmin = auth.getAuthorities().stream()
+                .anyMatch(a -> "ROLE_ADMIN".equalsIgnoreCase(a.getAuthority())
+                        || "ADMIN".equalsIgnoreCase(a.getAuthority()));
+
+        if (!isOwner && !isAdmin) {
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        }
+
+        Long orderEntityId = order.getOrderID();
+        ShippingInfo shippingInfo = order.getShippingInfo();
+        String shippingStatus = shippingInfo != null ? shippingInfo.getShippingStatus() : null;
+        BigDecimal shippingFee = shippingInfo != null ? shippingInfo.getShippingFee() : null;
+        LocalDateTime expectedDeliveryAt = shippingInfo != null ? shippingInfo.getExpectedDeliveryAt() : null;
+        Boolean isPastExpectedDeliveryAt = expectedDeliveryAt != null && LocalDateTime.now(APP_ZONE_ID).isAfter(expectedDeliveryAt);
+
+        List<StaffOrderItemResponse> orderItems = orderDetailRepo.findByOrderIdFetchProduct(orderEntityId).stream()
+                .map(this::toOrderItemResponse)
+                .toList();
+
+        PrescriptionOrder prescriptionOrder = prescriptionOrderRepo.findByOrder_OrderID(orderEntityId).orElse(null);
+        List<StaffPrescriptionOrderItemResponse> prescriptionItems = mapPrescriptionItems(prescriptionOrder);
+        boolean hasPrescriptionItem = !prescriptionItems.isEmpty();
+        boolean requiresFinalPayment = isRequiresFinalPayment(order);
+        BigDecimal totalPaidSuccess = sumSuccessfulPayments(order);
+        BigDecimal totalRefundedCompleted = sumCompletedOrderRefundAmount(orderEntityId);
+        BigDecimal refundableAmount = totalPaidSuccess.subtract(totalRefundedCompleted);
+        if (refundableAmount.signum() < 0) {
+            refundableAmount = BigDecimal.ZERO;
+        }
+        boolean canCancelOrder = isCustomerCancelableStatus(order.getOrderStatus());
+        boolean requiresRefundInfoOnCancel = canCancelOrder && refundableAmount.compareTo(BigDecimal.ZERO) > 0;
+        boolean hasOpenRefundRequest = returnExchangeRepo.existsByOrder_OrderIDAndReturnTypeAndRequestScopeAndStatusIn(
+                orderEntityId,
+                "REFUND",
+                "ORDER",
+                List.of("PENDING", "APPROVED")
+        );
+        ReturnExchange latestOrderRefund = returnExchangeRepo
+                .findTopByOrder_OrderIDAndReturnTypeIgnoreCaseAndRequestScopeIgnoreCaseOrderByRequestDateDesc(
+                        orderEntityId,
+                        "REFUND",
+                        "ORDER"
+                )
+                .orElse(null);
+        String cancelScenario = resolveCancelScenario(order.getOrderStatus(), refundableAmount, latestOrderRefund);
+
+        return StaffOrderDetailResponse.builder()
+                .orderId(order.getOrderID())
+                .prescriptionOrderId(prescriptionOrder != null ? prescriptionOrder.getPrescriptionOrderID() : null)
+                .orderCode(order.getOrderCode())
+                .orderStatus(order.getOrderStatus())
+                .orderType(order.getOrderType())
+                .orderDate(order.getOrderDate())
+                .totalAmount(order.getTotalAmount())
+                .shippingStatus(shippingStatus)
+                .shippingFee(shippingFee)
+                .expectedDeliveryAt(expectedDeliveryAt)
+                .isPastExpectedDeliveryAt(isPastExpectedDeliveryAt)
+                .hasPrescriptionItem(hasPrescriptionItem)
+                .requiresFinalPayment(requiresFinalPayment)
+                .availableActions(List.of())
+                .canCancelOrder(canCancelOrder)
+                .requiresRefundInfoOnCancel(requiresRefundInfoOnCancel)
+                .refundableAmount(refundableAmount)
+                .cancelScenario(cancelScenario)
+                .hasOpenRefundRequest(hasOpenRefundRequest)
+                .latestReturnExchangeId(latestOrderRefund != null ? latestOrderRefund.getReturnExchangeID() : null)
+                .latestReturnExchangeCode(latestOrderRefund != null ? latestOrderRefund.getReturnCode() : null)
+                .latestReturnExchangeStatus(latestOrderRefund != null ? latestOrderRefund.getStatus() : null)
+                .latestReturnExchangeRefundAmount(latestOrderRefund != null ? latestOrderRefund.getRefundAmount() : null)
+                .latestStaffRefundEvidenceUrl(latestOrderRefund != null ? latestOrderRefund.getStaffRefundEvidenceUrl() : null)
+                .latestRejectReason(latestOrderRefund != null ? latestOrderRefund.getRejectReason() : null)
+                .customerName(order.getUser() != null ? order.getUser().getName() : null)
+                .customerPhone(order.getUser() != null ? order.getUser().getPhone() : null)
+                .customerEmail(order.getUser() != null ? order.getUser().getEmail() : null)
+                .orderDetail(orderItems)
+                .prescriptionOrderDetail(prescriptionItems)
+                .recipientName(shippingInfo != null ? shippingInfo.getRecipientName() : null)
+                .recipientPhone(shippingInfo != null ? shippingInfo.getRecipientPhone() : null)
+                .recipientEmail(shippingInfo != null ? shippingInfo.getRecipientEmail() : null)
+                .recipientAddress(shippingInfo != null ? shippingInfo.getRecipientAddress() : null)
+                .note(shippingInfo != null ? shippingInfo.getNote() : null)
+                .build();
+    }
+
+    private BigDecimal sumSuccessfulPayments(Order order) {
+        if (order.getPayments() == null || order.getPayments().isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+        return order.getPayments().stream()
+                .filter(Objects::nonNull)
+                .filter(p -> OrderConstants.PAYMENT_STATUS_SUCCESS.equalsIgnoreCase(p.getStatus()))
+                .map(Payment::getAmount)
+                .filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private BigDecimal sumCompletedOrderRefundAmount(Long orderId) {
+        return returnExchangeRepo.findByOrder_OrderIDAndReturnTypeIgnoreCaseAndRequestScopeIgnoreCase(orderId, "REFUND", "ORDER")
+                .stream()
+                .filter(Objects::nonNull)
+                .filter(re -> "COMPLETED".equalsIgnoreCase(re.getStatus()))
+                .map(ReturnExchange::getRefundAmount)
+                .filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private boolean isCustomerCancelableStatus(String orderStatus) {
+        if (orderStatus == null) {
+            return false;
+        }
+        return OrderConstants.ORDER_STATUS_PENDING.equalsIgnoreCase(orderStatus)
+                || OrderConstants.ORDER_STATUS_PARTIALLY_PAID.equalsIgnoreCase(orderStatus)
+                || OrderConstants.ORDER_STATUS_PAID.equalsIgnoreCase(orderStatus);
+    }
+
+    private String resolveCancelScenario(String orderStatus, BigDecimal refundableAmount, ReturnExchange latestOrderRefund) {
+        if (isCustomerCancelableStatus(orderStatus)) {
+            if (refundableAmount != null && refundableAmount.compareTo(BigDecimal.ZERO) > 0) {
+                return "CANCEL_WITH_MANUAL_REFUND";
+            }
+            return "CANCEL_WITHOUT_REFUND";
+        }
+        if (!OrderConstants.ORDER_STATUS_CANCELED.equalsIgnoreCase(orderStatus)) {
+            return "CANCEL_NOT_ALLOWED";
+        }
+        if (latestOrderRefund == null) {
+            return "CANCELED_NO_REFUND_COMPLETED";
+        }
+        String status = latestOrderRefund.getStatus() == null ? "" : latestOrderRefund.getStatus().trim().toUpperCase(Locale.ROOT);
+        return switch (status) {
+            case "PENDING", "APPROVED" -> "CANCELED_REFUND_IN_PROGRESS";
+            case "REJECTED" -> "CANCELED_REFUND_REJECTED";
+            case "COMPLETED" -> "CANCELED_REFUND_COMPLETED";
+            default -> "CANCELED_REFUND_IN_PROGRESS";
+        };
+    }
+
+    private StaffOrderItemResponse toOrderItemResponse(OrderDetail detail) {
+        Product product = detail.getProduct();
+        Integer quantity = detail.getQuantity() == null ? 0 : detail.getQuantity();
+        BigDecimal unitPrice = detail.getUnitPrice() == null ? BigDecimal.ZERO : detail.getUnitPrice();
+        return StaffOrderItemResponse.builder()
+                .orderDetailId(detail.getOrderDetailID())
+                .productId(product != null ? product.getProductID() : null)
+                .productName(product != null ? product.getProductName() : null)
+                .quantity(quantity)
+                .unitPrice(unitPrice)
+                .totalPrice(unitPrice.multiply(BigDecimal.valueOf(quantity)))
+                .imageUrl(pickPrimaryImage(product))
+                .build();
+    }
+
+    private List<StaffPrescriptionOrderItemResponse> mapPrescriptionItems(PrescriptionOrder prescriptionOrder) {
+        if (prescriptionOrder == null || prescriptionOrder.getPrescriptionOrderDetails() == null) {
+            return List.of();
+        }
+
+        Map<PrescriptionGroupKey, RxAggregate> aggregates = new LinkedHashMap<>();
+        for (PrescriptionOrderDetail detail : prescriptionOrder.getPrescriptionOrderDetails()) {
+            String rightSph = bdToText(detail.getRightEyeSph());
+            String rightCyl = bdToText(detail.getRightEyeCyl());
+            String rightAxis = detail.getRightEyeAxis() == null ? null : String.valueOf(detail.getRightEyeAxis());
+            String rightAdd = detail.getRightEyeAdd() == null ? null : String.valueOf(detail.getRightEyeAdd());
+            String rightPD = bdToText(detail.getPdRight());
+            String leftSph = bdToText(detail.getLeftEyeSph());
+            String leftCyl = bdToText(detail.getLeftEyeCyl());
+            String leftAxis = detail.getLeftEyeAxis() == null ? null : String.valueOf(detail.getLeftEyeAxis());
+            String leftAdd = detail.getLeftEyeAdd() == null ? null : String.valueOf(detail.getLeftEyeAdd());
+            String leftPD = bdToText(detail.getPdLeft());
+
+            Long frameId = detail.getFrame() != null ? detail.getFrame().getFrameID() : null;
+            Long lensId = detail.getLens() != null ? detail.getLens().getLensID() : null;
+            Product frameProduct = detail.getFrame() != null ? detail.getFrame().getProduct() : null;
+            Product lensProduct = detail.getLens() != null ? detail.getLens().getProduct() : null;
+            String frameName = frameProduct != null ? frameProduct.getProductName() : null;
+            String lensName = lensProduct != null ? lensProduct.getProductName() : null;
+
+            BigDecimal framePrice = productPrice(frameProduct);
+            BigDecimal lensPrice = productPrice(lensProduct);
+            BigDecimal lineTotal = detail.getSubTotal() == null ? BigDecimal.ZERO : detail.getSubTotal();
+
+            PrescriptionGroupKey key = new PrescriptionGroupKey(
+                    frameId,
+                    lensId,
+                    rightSph,
+                    rightCyl,
+                    rightAxis,
+                    rightAdd,
+                    rightPD,
+                    leftSph,
+                    leftCyl,
+                    leftAxis,
+                    leftAdd,
+                    leftPD,
+                    bdToText(lineTotal)
+            );
+
+            RxAggregate aggregate = aggregates.computeIfAbsent(key, k -> new RxAggregate(
+                    StaffPrescriptionOrderItemResponse.builder()
+                            .prescriptionOrderDetailId(detail.getPrescriptionOrderDetailID())
+                            .frameId(frameId)
+                            .frameName(frameName)
+                            .framePrice(framePrice)
+                            .frameImg(pickPrimaryImage(frameProduct))
+                            .lensId(lensId)
+                            .lensName(lensName)
+                            .lensPrice(lensPrice)
+                            .lensImg(pickPrimaryImage(lensProduct))
+                            .contactLensId(null)
+                            .contactLensName(null)
+                            .contactLensPrice(BigDecimal.ZERO)
+                            .contactLensImg(null)
+                            .rightEyeSph(rightSph)
+                            .rightEyeCyl(rightCyl)
+                            .rightEyeAxis(rightAxis)
+                            .rightEyeAdd(rightAdd)
+                            .rightPD(rightPD)
+                            .leftEyeSph(leftSph)
+                            .leftEyeCyl(leftCyl)
+                            .leftEyeAxis(leftAxis)
+                            .leftEyeAdd(leftAdd)
+                            .leftPD(leftPD)
+                            .quantity(0)
+                            .totalPrice(BigDecimal.ZERO)
+                            .build()
+            ));
+
+            aggregate.response.setQuantity(aggregate.response.getQuantity() + 1);
+            aggregate.response.setTotalPrice(aggregate.response.getTotalPrice().add(lineTotal));
+        }
+
+        return aggregates.values().stream().map(a -> a.response).toList();
+    }
+
+    private BigDecimal productPrice(Product product) {
+        return product != null && product.getPrice() != null ? product.getPrice() : BigDecimal.ZERO;
+    }
+
+    private String pickPrimaryImage(Product product) {
+        if (product == null || product.getImages() == null || product.getImages().isEmpty()) {
+            return null;
+        }
+        return product.getImages().stream()
+                .filter(Objects::nonNull)
+                .filter(i -> Boolean.TRUE.equals(i.getAvatar()))
+                .findFirst()
+                .map(ProductImage::getImageUrl)
+                .orElseGet(() -> product.getImages().stream()
+                        .filter(Objects::nonNull)
+                        .map(ProductImage::getImageUrl)
+                        .filter(url -> url != null && !url.trim().isEmpty())
+                        .findFirst()
+                        .orElse(null));
+    }
+
+    private String bdToText(BigDecimal value) {
+        return value == null ? null : value.stripTrailingZeros().toPlainString();
+    }
+
+    private String bdToText(Double value) {
+        return value == null ? null : BigDecimal.valueOf(value).stripTrailingZeros().toPlainString();
+    }
+
+    private boolean isRequiresFinalPayment(Order order) {
+        if (order == null) {
+            return false;
+        }
+        Invoice invoice = order.getInvoice();
+        if (invoice != null && isStatus(invoice.getStatus(), "PARTIALLY_PAID")) {
+            return true;
+        }
+        return isStatus(order.getOrderStatus(), "PARTIALLY_PAID");
+    }
+
+    private boolean isStatus(String value, String expected) {
+        return value != null && expected != null && value.trim().equalsIgnoreCase(expected);
+    }
+
+    private static class RxAggregate {
+        private final StaffPrescriptionOrderItemResponse response;
+
+        private RxAggregate(StaffPrescriptionOrderItemResponse response) {
+            this.response = response;
+        }
+    }
+
+    private static class PrescriptionGroupKey {
+        private final Long frameId;
+        private final Long lensId;
+        private final String rightEyeSph;
+        private final String rightEyeCyl;
+        private final String rightEyeAxis;
+        private final String rightEyeAdd;
+        private final String rightPD;
+        private final String leftEyeSph;
+        private final String leftEyeCyl;
+        private final String leftEyeAxis;
+        private final String leftEyeAdd;
+        private final String leftPD;
+        private final String lineSubTotal;
+
+        private PrescriptionGroupKey(Long frameId, Long lensId, String rightEyeSph, String rightEyeCyl,
+                                     String rightEyeAxis, String rightEyeAdd, String rightPD,
+                                     String leftEyeSph, String leftEyeCyl, String leftEyeAxis,
+                                     String leftEyeAdd, String leftPD, String lineSubTotal) {
+            this.frameId = frameId;
+            this.lensId = lensId;
+            this.rightEyeSph = rightEyeSph;
+            this.rightEyeCyl = rightEyeCyl;
+            this.rightEyeAxis = rightEyeAxis;
+            this.rightEyeAdd = rightEyeAdd;
+            this.rightPD = rightPD;
+            this.leftEyeSph = leftEyeSph;
+            this.leftEyeCyl = leftEyeCyl;
+            this.leftEyeAxis = leftEyeAxis;
+            this.leftEyeAdd = leftEyeAdd;
+            this.leftPD = leftPD;
+            this.lineSubTotal = lineSubTotal;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            PrescriptionGroupKey that = (PrescriptionGroupKey) o;
+            return Objects.equals(frameId, that.frameId)
+                    && Objects.equals(lensId, that.lensId)
+                    && Objects.equals(rightEyeSph, that.rightEyeSph)
+                    && Objects.equals(rightEyeCyl, that.rightEyeCyl)
+                    && Objects.equals(rightEyeAxis, that.rightEyeAxis)
+                    && Objects.equals(rightEyeAdd, that.rightEyeAdd)
+                    && Objects.equals(rightPD, that.rightPD)
+                    && Objects.equals(leftEyeSph, that.leftEyeSph)
+                    && Objects.equals(leftEyeCyl, that.leftEyeCyl)
+                    && Objects.equals(leftEyeAxis, that.leftEyeAxis)
+                    && Objects.equals(leftEyeAdd, that.leftEyeAdd)
+                    && Objects.equals(leftPD, that.leftPD)
+                    && Objects.equals(lineSubTotal, that.lineSubTotal);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(frameId, lensId, rightEyeSph, rightEyeCyl, rightEyeAxis, rightEyeAdd, rightPD,
+                    leftEyeSph, leftEyeCyl, leftEyeAxis, leftEyeAdd, leftPD, lineSubTotal);
+        }
+    }
+
+    private boolean isPdRequired(CartItem ci) {
+        return ci.getFrame() != null;
+    }
+
+    private boolean isPrescriptionItemByBusinessRule(CartItem ci, CartItemPrescription rx) {
+        if (ci.getFrame() != null && ci.getLens() != null) return true;
+        if (ci.getLens() != null && ci.getFrame() == null) return rx != null && hasPrescriptionData(rx);
+        if (ci.getContactLens() != null) return rx != null && hasPrescriptionData(rx);
+        return false;
+    }
+
+    private String determineOrderTypeByBusinessRule(List<CheckoutLineItemResponse> previewItems,
+                                                    List<CartItem> cartItems,
+                                                    Map<Long, CartItemPrescription> rxMap) {
+        Map<Long, CheckoutLineItemResponse> previewMap = new HashMap<>();
+        for (CheckoutLineItemResponse li : previewItems) {
+            previewMap.put(li.getCartItemId(), li);
+        }
+        boolean hasDirect = false;
+        boolean hasPre = false;
+        boolean hasPrescription = false;
+        for (CartItem ci : cartItems) {
+            CheckoutLineItemResponse li = previewMap.get(ci.getCartItemId());
+            boolean isPrescription = isPrescriptionItemByBusinessRule(ci, rxMap.get(ci.getCartItemId()));
+            boolean isPre = li != null && "PRE_ORDER".equals(li.getItemType());
+            if (isPrescription) {
+                hasPrescription = true;
+            } else if (isPre) {
+                hasPre = true;
+            } else {
+                hasDirect = true;
+            }
+        }
+        int types = 0;
+        if (hasDirect) types++;
+        if (hasPre) types++;
+        if (hasPrescription) types++;
+        if (types > 1) return "MIX_ORDER";
+        if (hasPrescription) return "PRESCRIPTION_ORDER";
+        if (hasPre) return "PRE_ORDER";
+        return "DIRECT_ORDER";
+    }
+
+    private boolean hasPrescriptionData(CartItemPrescription rx) {
+        return rx.getRightEyeSph() != null
+                || rx.getRightEyeCyl() != null
+                || rx.getRightEyeAxis() != null
+                || rx.getRightEyeAdd() != null
+                || rx.getLeftEyeSph() != null
+                || rx.getLeftEyeCyl() != null
+                || rx.getLeftEyeAxis() != null
+                || rx.getLeftEyeAdd() != null
+                || rx.getPd() != null
+                || rx.getPdRight() != null
+                || rx.getPdLeft() != null;
     }
 }

@@ -1,13 +1,17 @@
 package com.swp391.eyewear_management_backend.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.swp391.eyewear_management_backend.dto.request.ReturnExchangeRequest;
 import com.swp391.eyewear_management_backend.dto.response.ApiResponse;
 import com.swp391.eyewear_management_backend.dto.response.ReturnExchangeResponse;
 import com.swp391.eyewear_management_backend.service.ReturnExchangeService;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -21,16 +25,24 @@ public class ReturnExchangeController {
 
     /**
      * Tạo yêu cầu đổi trả
+     *
+     * Phần 1: Nhận cục JSON (chứa cả cha lẫn list con)
+     * Phần 2: Nhận danh sách File ảnh tương ứng với từng item con
      */
-    @PostMapping
-    public ResponseEntity<ApiResponse<ReturnExchangeResponse>> createReturnExchange(
-            @RequestBody ReturnExchangeRequest request) {
-        ReturnExchangeResponse response = returnExchangeService.createReturnExchange(request);
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApiResponse<String>> createReturnExchange(
+            @RequestPart("request") @Valid ReturnExchangeRequest request,
+            @RequestPart(value = "itemImages", required = false) List<MultipartFile> itemImages,
+            @RequestPart(value = "customerImageQr", required = false) MultipartFile customerImageQr) {
+
+        // Truyền thêm danh sách ảnh xuống Service
+        returnExchangeService.createReturnExchange(request, itemImages, customerImageQr);
+
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.<ReturnExchangeResponse>builder()
+                .body(ApiResponse.<String>builder()
                         .code(1000)
-                        .message("Return exchange request created successfully")
-                        .result(response)
+                        .message("Success")
+                        .result("Return exchange request created successfully")
                         .build());
     }
 
@@ -131,20 +143,20 @@ public class ReturnExchangeController {
                 .build());
     }
 
-    /**
-     * Cập nhật yêu cầu đổi trả
-     */
-    @PutMapping("/{returnExchangeId}")
-    public ResponseEntity<ApiResponse<ReturnExchangeResponse>> updateReturnExchange(
-            @PathVariable Long returnExchangeId,
-            @RequestBody ReturnExchangeRequest request) {
-        ReturnExchangeResponse response = returnExchangeService.updateReturnExchange(returnExchangeId, request);
-        return ResponseEntity.ok(ApiResponse.<ReturnExchangeResponse>builder()
-                .code(1000)
-                .message("Return exchange updated successfully")
-                .result(response)
-                .build());
-    }
+//    /**
+//     * Cập nhật yêu cầu đổi trả
+//     */
+//    @PutMapping("/{returnExchangeId}")
+//    public ResponseEntity<ApiResponse<ReturnExchangeResponse>> updateReturnExchange(
+//            @PathVariable Long returnExchangeId,
+//            @RequestBody ReturnExchangeRequest request) {
+//        ReturnExchangeResponse response = returnExchangeService.updateReturnExchange(returnExchangeId, request);
+//        return ResponseEntity.ok(ApiResponse.<ReturnExchangeResponse>builder()
+//                .code(1000)
+//                .message("Return exchange updated successfully")
+//                .result(response)
+//                .build());
+//    }
 
     /**
      * Xóa yêu cầu đổi trả
